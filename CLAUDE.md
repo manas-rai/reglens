@@ -11,11 +11,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Install / sync deps
 uv sync --all-extras
-# macOS note: hatchling editable installs get the macOS hidden chflag set,
-# which Python's site module skips. Fix with:
-#   chflags nohidden .venv/lib/python3.11/site-packages/_editable_impl_reglens.pth
-# pytest sets PYTHONPATH=src via pyproject.toml so it's unaffected.
-# For `uv run python` scripts outside pytest, use: PYTHONPATH=src uv run python ...
 
 # Run all unit tests
 uv run pytest tests/unit -v
