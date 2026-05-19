@@ -1,0 +1,128 @@
+version: "3.9"
+
+# All service-to-service URLs use docker service names.
+# For local dev, expose ports to localhost for direct access.
+
+services:
+  # ---------------------------------------------------------------------------
+  # Postgres with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: reglens-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reglens
+      POSTGRES_PASSWORD: reglens
+      POSTGRES_DB: reglens
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reglens -d reglens"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Database migrations (run once then exit)
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: reglens-migrate
+    command: uv run alembic upgrade head
+    environment:
+      DATABASE_URL: postgresql+psycopg://reglens:reglens@postgres:5432/reglens
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # FastAPI service
+  reglens-api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: reglens-api
+    restart: unless-stopped
+    command: uv run uvicorn reglens.api.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://reglens:reglens@postgres:5432/reglens
+      A2A_INGESTION_URL: http://reglens-adk-ingest:8001
+      A2A_RISK_SCORER_URL: http://reglens-adk-risk:8002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./src:/app/src
+      - ./uploads:/app/uploads
+
+  # ---------------------------------------------------------------------------
+  # LangGraph supervisor service
+  reglens-langgraph:
+    build:
+      context: .
+      dockerfile: docker/langgraph.Dockerfile
+    container_name: reglens-langgraph
+    restart: unless-stopped
+    command: uv run python -m reglens.supervisor.server
+    ports:
+      - "8010:8010"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://reglens:reglens@postgres:5432/reglens
+      A2A_INGESTION_URL: http://reglens-adk-ingest:8001
+      A2A_RISK_SCORER_URL: http://reglens-adk-risk:8002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./src:/app/src
+
+  # ---------------------------------------------------------------------------
+  # ADK Document Ingestion agent (A2A server, port 8001)
+  reglens-adk-ingest:
+    build:
+      context: .
+      dockerfile: docker/adk.Dockerfile
+    container_name: reglens-adk-ingest
+    restart: unless-stopped
+    command: uv run python -m reglens.agents.ingestion.server
+    ports:
+      - "8001:8001"
+    env_file: .env
+    environment:
+      ADK_AGENT_PORT: "8001"
+      ADK_AGENT_NAME: "document-ingestion"
+    volumes:
+      - ./src:/app/src
+
+  # ---------------------------------------------------------------------------
+  # ADK Risk Scorer agent (A2A server, port 8002)
+  reglens-adk-risk:
+    build:
+      context: .
+      dockerfile: docker/adk.Dockerfile
+    container_name: reglens-adk-risk
+    restart: unless-stopped
+    command: uv run python -m reglens.agents.risk_scorer.server
+    ports:
+      - "8002:8002"
+    env_file: .env
+    environment:
+      ADK_AGENT_PORT: "8002"
+      ADK_AGENT_NAME: "risk-scorer"
+    volumes:
+      - ./src:/app/src
+
+volumes:
+  postgres_data:
