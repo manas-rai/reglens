@@ -6,7 +6,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv==0.9.18 || pip install --no-cache-dir uv
 
 # Copy dependency files first (layer caching)
-COPY pyproject.toml uv.lock* LICENSE ./
+COPY pyproject.toml uv.lock* LICENSE README.md alembic.ini ./
 COPY src/ ./src/
 
 # Install project with all extras
