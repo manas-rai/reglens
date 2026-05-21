@@ -21,7 +21,7 @@ def create_app() -> FastAPI:
     configure_logging(level=settings.log_level)
     configure_tracing(
         service_name=settings.otel_service_name,
-        endpoint=settings.otel_exporter_endpoint,
+        otlp_endpoint=settings.otel_exporter_endpoint,
     )
 
     app = FastAPI(
