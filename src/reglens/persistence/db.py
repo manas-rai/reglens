@@ -51,3 +51,8 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     factory = get_session_factory()
     async with factory() as session:
         yield session
+
+
+def async_session_factory() -> AsyncSession:
+    """Return an async context-manager-compatible session (use with `async with`)."""
+    return get_session_factory()()

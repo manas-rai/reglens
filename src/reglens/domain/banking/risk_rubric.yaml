@@ -1,0 +1,71 @@
+# Banking domain risk rubric — used by the risk scorer agent
+# Each category maps to scoring guidance for severity assessment.
+
+domain: banking
+
+risk_categories:
+  customer_protection:
+    description: "Obligations protecting customer rights, data, and fair treatment"
+    weight: 0.25
+    critical_keywords:
+      - "customer data"
+      - "grievance redressal"
+      - "fair practices"
+      - "disclosure to customer"
+      - "KYC"
+
+  capital_adequacy:
+    description: "Capital ratio, liquidity, and solvency obligations"
+    weight: 0.25
+    critical_keywords:
+      - "capital adequacy ratio"
+      - "CRAR"
+      - "liquidity coverage"
+      - "net stable funding"
+
+  anti_money_laundering:
+    description: "AML/CFT obligations and suspicious transaction reporting"
+    weight: 0.20
+    critical_keywords:
+      - "suspicious transaction"
+      - "STR"
+      - "beneficial owner"
+      - "politically exposed"
+      - "PMLA"
+
+  governance:
+    description: "Board, audit, and internal control obligations"
+    weight: 0.15
+    critical_keywords:
+      - "board approval"
+      - "audit committee"
+      - "independent director"
+      - "risk management committee"
+
+  reporting:
+    description: "Regulatory reporting and disclosure obligations"
+    weight: 0.15
+    critical_keywords:
+      - "report to RBI"
+      - "submit returns"
+      - "disclose to regulator"
+      - "quarterly report"
+
+severity_matrix:
+  gap:
+    high_weight_category: critical
+    low_weight_category: high
+  partial_gap:
+    high_weight_category: high
+    low_weight_category: medium
+  compliant:
+    any: none
+  not_applicable:
+    any: none
+
+scoring_guidance:
+  critical: "Breach directly triggers regulatory enforcement, license revocation, or criminal liability. Score 8–10."
+  high: "Significant breach likely to result in regulatory notice, monetary penalty, or reputational damage. Score 6–7.9."
+  medium: "Moderate breach with operational or reputational impact. Score 4–5.9."
+  low: "Minor breach with limited impact, typically self-correctable. Score 1–3.9."
+  none: "No gap or obligation is not applicable. Score 0."

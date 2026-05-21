@@ -69,4 +69,32 @@ See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the full desi
 
 ## Current phase
 
-**Phase 0 — Foundation** (complete). Start Phase 1 (Vertical MVP) next: schemas → supervisor graph → A2A layer → agents → FastAPI routes → fixtures.
+**Phase 1 — Vertical MVP** (code complete, not yet end-to-end tested). Phase 2 next: hardening, evaluation suites, LangSmith tracing, OTel A2A spans.
+
+## Phase 1 quick-start
+
+```bash
+cp .env.example .env           # fill in GEMINI_API_KEY, ANTHROPIC_API_KEY, API_KEY
+docker compose up -d           # start postgres + all services
+uv run python scripts/seed_rag.py   # embed banking.yaml into pgvector
+
+# Start a run (replace fixture path with a real RBI circular PDF)
+curl -X POST http://localhost:8000/runs \
+  -H "x-api-key: $API_KEY" \
+  -F "pdf=@fixtures/regulations/YOUR_PDF.pdf" \
+  -F "matrix=@fixtures/control_matrices/banking.yaml" \
+  -F "regulation_ref=RBI-MD-KYC-2016" \
+  -F "domain=banking"
+
+# Stream events (replace RUN_ID)
+curl -N http://localhost:8000/runs/RUN_ID/events -H "x-api-key: $API_KEY"
+
+# Approve once status=awaiting_approval
+curl -X POST http://localhost:8000/runs/RUN_ID/approve \
+  -H "x-api-key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"approved": true, "edits": []}'
+
+# Fetch the final report
+curl http://localhost:8000/runs/RUN_ID/report -H "x-api-key: $API_KEY"
+```

@@ -1,0 +1,284 @@
+# Synthetic Banking Control Matrix
+# 25 deliberate gaps planted against RBI Master Direction clauses.
+# Gaps are marked with gap_planted: true in comments.
+# Controls that are INTENTIONALLY ABSENT are noted in the gaps list at the bottom.
+
+metadata:
+  organization: "Acme Bank (Synthetic)"
+  domain: banking
+  version: "2024-01"
+  last_reviewed: "2024-01-15"
+
+policies:
+  # ── KYC / Customer Due Diligence ──────────────────────────────────────────
+
+  - id: CTL-KYC-001
+    domain: banking
+    section: KYC & AML
+    title: Customer Identification Programme
+    text: >
+      The Bank maintains a Customer Identification Programme (CIP) requiring collection of
+      customer name, address, date of birth, and a government-issued photo ID for all
+      individual accounts prior to account opening. The CIP is reviewed annually.
+    owner: Chief Compliance Officer
+    last_reviewed: "2024-01-10"
+    tags: [kyc, onboarding, individual]
+
+  - id: CTL-KYC-002
+    domain: banking
+    section: KYC & AML
+    title: Beneficial Owner Identification — Legal Entities
+    text: >
+      For non-individual customers (companies, trusts, partnerships), the Bank identifies
+      and verifies beneficial owners holding 25% or more of voting rights. Beneficial owner
+      details are recorded in the Customer Master and reviewed on change of control.
+    owner: Chief Compliance Officer
+    last_reviewed: "2024-01-10"
+    tags: [kyc, beneficial-owner, legal-entity]
+
+  # GAP PLANTED: No periodic KYC refresh policy for high-risk customers
+  # CTL-KYC-003 (periodic refresh for high-risk) does NOT exist
+
+  - id: CTL-KYC-004
+    domain: banking
+    section: KYC & AML
+    title: Customer Risk Categorisation
+    text: >
+      Customers are categorised as Low, Medium, or High risk at onboarding using a
+      risk scoring model. Risk category is reviewed annually for Medium risk and bi-annually
+      for Low risk customers.
+    owner: Chief Compliance Officer
+    last_reviewed: "2024-01-10"
+    tags: [kyc, risk-categorisation]
+
+  # GAP PLANTED: No policy for Politically Exposed Persons (PEP) enhanced due diligence
+  # CTL-KYC-005 (PEP EDD) does NOT exist
+
+  # ── AML / Transaction Monitoring ──────────────────────────────────────────
+
+  - id: CTL-AML-001
+    domain: banking
+    section: KYC & AML
+    title: Suspicious Transaction Reporting
+    text: >
+      The Bank files Suspicious Transaction Reports (STRs) with the Financial Intelligence
+      Unit (FIU-IND) within 7 days of detection. The Compliance team maintains a STR
+      register and escalation procedure.
+    owner: Chief Compliance Officer
+    last_reviewed: "2024-01-10"
+    tags: [aml, str, reporting]
+
+  - id: CTL-AML-002
+    domain: banking
+    section: KYC & AML
+    title: Cash Transaction Reporting
+    text: >
+      The Bank reports all cash transactions above INR 10 lakh to FIU-IND via the
+      prescribed CTR format within 15 days of the close of the month.
+    owner: Chief Compliance Officer
+    last_reviewed: "2024-01-10"
+    tags: [aml, ctr, reporting]
+
+  # GAP PLANTED: No PMLA record retention policy for 10 years
+  # CTL-AML-003 (PMLA record retention) does NOT exist
+
+  # GAP PLANTED: No policy for monitoring of wire transfers for AML purposes
+  # CTL-AML-004 (wire transfer monitoring) does NOT exist
+
+  # ── Capital Adequacy ───────────────────────────────────────────────────────
+
+  - id: CTL-CAR-001
+    domain: banking
+    section: Capital Adequacy
+    title: Capital Adequacy Ratio (CRAR) Monitoring
+    text: >
+      The Bank maintains minimum Capital-to-Risk-Weighted Assets Ratio (CRAR) of 11.5%
+      (including capital conservation buffer) as prescribed by RBI. CRAR is computed
+      quarterly and reported in Basel III returns.
+    owner: Chief Risk Officer
+    last_reviewed: "2024-01-10"
+    tags: [capital, crar, basel-iii]
+
+  # GAP PLANTED: No Leverage Ratio monitoring policy
+  # CTL-CAR-002 (Leverage Ratio) does NOT exist
+
+  - id: CTL-CAR-003
+    domain: banking
+    section: Capital Adequacy
+    title: Liquidity Coverage Ratio (LCR) Policy
+    text: >
+      The Bank maintains LCR of at least 100% per RBI Master Circular on Basel III. LCR
+      is monitored daily and reported monthly. Intraday LCR breaches are escalated to ALCO.
+    owner: Chief Risk Officer
+    last_reviewed: "2024-01-10"
+    tags: [liquidity, lcr, basel-iii]
+
+  # GAP PLANTED: No Net Stable Funding Ratio (NSFR) policy
+  # CTL-CAR-004 (NSFR) does NOT exist
+
+  # ── Governance ────────────────────────────────────────────────────────────
+
+  - id: CTL-GOV-001
+    domain: banking
+    section: Governance
+    title: Board Risk Management Committee Charter
+    text: >
+      The Board Risk Management Committee (BRMC) meets at least quarterly. The BRMC reviews
+      the Bank's risk appetite statement, credit risk, market risk, and operational risk
+      reports. Minutes are recorded and placed before the Board.
+    owner: Company Secretary
+    last_reviewed: "2024-01-10"
+    tags: [governance, board, risk-committee]
+
+  - id: CTL-GOV-002
+    domain: banking
+    section: Governance
+    title: Independent Director Compliance
+    text: >
+      The Bank's Board includes at least one-third independent directors as required by
+      RBI guidelines. Independent director appointments are approved by RBI.
+    owner: Company Secretary
+    last_reviewed: "2024-01-10"
+    tags: [governance, board, independent-director]
+
+  # GAP PLANTED: No Audit Committee policy covering internal audit independence
+  # CTL-GOV-003 (Audit Committee independence) does NOT exist
+
+  # GAP PLANTED: No formal whistleblower/vigil mechanism policy
+  # CTL-GOV-004 (Whistleblower mechanism) does NOT exist
+
+  # ── Reporting ─────────────────────────────────────────────────────────────
+
+  - id: CTL-REP-001
+    domain: banking
+    section: Regulatory Reporting
+    title: Basel III Capital Returns
+    text: >
+      The Bank submits Basel III capital adequacy returns to RBI on a quarterly basis
+      within 21 days of close of the quarter via the XBRL reporting portal.
+    owner: Chief Financial Officer
+    last_reviewed: "2024-01-10"
+    tags: [reporting, rbi, capital, xbrl]
+
+  - id: CTL-REP-002
+    domain: banking
+    section: Regulatory Reporting
+    title: Frauds Reporting to RBI
+    text: >
+      The Bank reports all fraud cases to RBI within 3 weeks of detection as per Master
+      Direction on Frauds. Frauds above INR 1 crore are reported to the Board.
+    owner: Chief Risk Officer
+    last_reviewed: "2024-01-10"
+    tags: [reporting, fraud, rbi]
+
+  # GAP PLANTED: No policy for reporting of data breaches to RBI within 6 hours
+  # CTL-REP-003 (IT/cyber incident reporting) does NOT exist
+
+  # GAP PLANTED: No policy for submission of Large Exposure Returns
+  # CTL-REP-004 (Large Exposure Framework reporting) does NOT exist
+
+  # ── Customer Protection ───────────────────────────────────────────────────
+
+  - id: CTL-CUS-001
+    domain: banking
+    section: Customer Protection
+    title: Grievance Redressal Mechanism
+    text: >
+      The Bank has a Board-approved Grievance Redressal Policy. Customer complaints are
+      resolved within 30 days. The Nodal Officer coordinates complaints escalated to
+      RBI Ombudsman.
+    owner: Customer Service Head
+    last_reviewed: "2024-01-10"
+    tags: [customer, grievance, ombudsman]
+
+  # GAP PLANTED: No policy for compensating customers for unauthorized transactions
+  # CTL-CUS-002 (Unauthorized transaction compensation) does NOT exist
+
+  # GAP PLANTED: No Annual disclosure of lending rates / MCLR communication
+  # CTL-CUS-003 (MCLR/EBR disclosure) does NOT exist
+
+  # ── IT & Cybersecurity ────────────────────────────────────────────────────
+
+  - id: CTL-IT-001
+    domain: banking
+    section: IT & Cybersecurity
+    title: Information Security Policy
+    text: >
+      The Bank maintains a Board-approved Information Security Policy aligned with RBI
+      Master Direction on IT Framework. The policy is reviewed annually by the IT
+      Strategy & Security Committee.
+    owner: Chief Information Security Officer
+    last_reviewed: "2024-01-10"
+    tags: [it, cybersecurity, policy]
+
+  # GAP PLANTED: No Business Continuity Plan (BCP) testing / DR drill documentation
+  # CTL-IT-002 (BCP/DR testing) does NOT exist
+
+  # GAP PLANTED: No third-party / vendor IT risk management policy
+  # CTL-IT-003 (Third-party IT risk) does NOT exist
+
+  # ── Interest Rate Risk ────────────────────────────────────────────────────
+
+  - id: CTL-MKT-001
+    domain: banking
+    section: Market Risk
+    title: Interest Rate Risk in Banking Book (IRRBB) Policy
+    text: >
+      The Bank manages interest rate risk in the banking book through duration limits and
+      earnings-at-risk (EaR) metrics monitored by ALCO monthly. The IRRBB policy is
+      reviewed annually by the Board.
+    owner: Chief Risk Officer
+    last_reviewed: "2024-01-10"
+    tags: [market-risk, irrbb, alco]
+
+  # GAP PLANTED: No policy for valuation of investment portfolio at fair value
+  # CTL-MKT-002 (Investment portfolio valuation) does NOT exist
+
+  # ── Credit Risk ───────────────────────────────────────────────────────────
+
+  - id: CTL-CRD-001
+    domain: banking
+    section: Credit Risk
+    title: Loan Policy
+    text: >
+      The Bank's Loan Policy defines credit appraisal standards, concentration limits
+      (sector, geography, borrower group), and collateral requirements. The policy is
+      approved by the Board annually.
+    owner: Chief Risk Officer
+    last_reviewed: "2024-01-10"
+    tags: [credit-risk, loan-policy, concentration]
+
+  - id: CTL-CRD-002
+    domain: banking
+    section: Credit Risk
+    title: NPA Recognition and Provisioning
+    text: >
+      The Bank classifies Non-Performing Assets (NPAs) and makes provisions per RBI
+      Income Recognition, Asset Classification, and Provisioning (IRACP) norms.
+      The NPA position is reported to the Board quarterly.
+    owner: Chief Risk Officer
+    last_reviewed: "2024-01-10"
+    tags: [credit-risk, npa, provisioning, iracp]
+
+  # GAP PLANTED: No Related Party Lending policy / large borrower exposure limits at group level
+  # CTL-CRD-003 (Related party transactions / Connected lending) does NOT exist
+
+# ── Planted Gaps Summary ──────────────────────────────────────────────────────
+# The following obligations from an RBI circular will find NO or PARTIAL coverage:
+#
+# 1.  Periodic KYC refresh for HIGH-RISK customers (no CTL-KYC-003)
+# 2.  Politically Exposed Persons (PEP) enhanced due diligence (no CTL-KYC-005)
+# 3.  PMLA record retention for 10 years (no CTL-AML-003)
+# 4.  Wire transfer AML monitoring (no CTL-AML-004)
+# 5.  Leverage Ratio monitoring and disclosure (no CTL-CAR-002)
+# 6.  Net Stable Funding Ratio (NSFR) policy (no CTL-CAR-004)
+# 7.  Audit Committee independence / internal audit coverage (no CTL-GOV-003)
+# 8.  Whistleblower / Vigil mechanism (no CTL-GOV-004)
+# 9.  IT/cyber incident reporting to RBI within 6 hours (no CTL-REP-003)
+# 10. Large Exposure Framework returns submission (no CTL-REP-004)
+# 11. Unauthorized electronic transaction compensation (no CTL-CUS-002)
+# 12. MCLR / EBR rate disclosure to customers (no CTL-CUS-003)
+# 13. BCP / DR testing and documentation (no CTL-IT-002)
+# 14. Third-party / vendor IT risk management (no CTL-IT-003)
+# 15. Investment portfolio fair value valuation policy (no CTL-MKT-002)
+# 16. Related Party / Connected lending exposure limits (no CTL-CRD-003)
