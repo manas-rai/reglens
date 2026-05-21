@@ -1,47 +1,63 @@
-"""Structured JSON logging via structlog."""
+"""Non-blocking structured JSON logging.
+
+Uses stdlib logging with a QueueHandler so log I/O never blocks the
+event loop or request thread. JSON serialization happens in a dedicated
+background thread via QueueListener.
+"""
 
 from __future__ import annotations
 
 import logging
+import logging.handlers
+import queue
 import sys
 
-import structlog
+from pythonjsonlogger import jsonlogger
+
+_listener: logging.handlers.QueueListener | None = None
 
 
-def configure_logging(log_level: str = "INFO") -> None:
-    """Configure structlog with JSON rendering for production, pretty-printing for dev."""
-    level = getattr(logging, log_level.upper(), logging.INFO)
+def configure_logging(level: str = "INFO") -> None:
+    """Configure root logger with non-blocking JSON output to stdout.
 
-    shared_processors: list[structlog.types.Processor] = [
-        structlog.contextvars.merge_contextvars,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-    ]
+    Safe to call multiple times (idempotent after the first call).
+    Call shutdown_logging() on process exit to flush the queue.
+    """
+    global _listener
+    if _listener is not None:
+        return
 
-    structlog.configure(
-        processors=[
-            *shared_processors,
-            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-        ],
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
+    root = logging.getLogger()
+    root.setLevel(getattr(logging, level.upper(), logging.INFO))
+
+    formatter = jsonlogger.JsonFormatter(  # type: ignore[attr-defined]
+        fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+        rename_fields={"asctime": "ts", "name": "logger", "levelname": "level"},
     )
 
-    formatter = structlog.stdlib.ProcessorFormatter(
-        processor=structlog.processors.JSONRenderer(),
-        foreign_pre_chain=shared_processors,
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+
+    # QueueHandler returns in ~1 μs; the listener drains it on a background thread.
+    log_queue: queue.SimpleQueue[logging.LogRecord] = queue.SimpleQueue()
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+    root.handlers = [queue_handler]
+
+    _listener = logging.handlers.QueueListener(
+        log_queue,
+        stream_handler,
+        respect_handler_level=True,
     )
+    _listener.start()
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(formatter)
-
-    root_logger = logging.getLogger()
-    root_logger.handlers = [handler]
-    root_logger.setLevel(level)
-
-    # Silence noisy libraries
-    for name in ("httpx", "httpcore", "hpack"):
+    for name in ("httpx", "httpcore", "hpack", "grpc"):
         logging.getLogger(name).setLevel(logging.WARNING)
+
+
+def shutdown_logging() -> None:
+    """Flush and stop the background listener. Call on process exit."""
+    global _listener
+    if _listener is not None:
+        _listener.stop()
+        _listener = None
