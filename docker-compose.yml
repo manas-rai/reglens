@@ -1,27 +1,9 @@
 # All service-to-service URLs use docker service names.
-# For local dev, expose ports to localhost for direct access.
+# Postgres is NOT managed here — point DATABASE_URL in .env at your existing instance.
+# From inside Docker containers, use host.docker.internal instead of localhost:
+#   DATABASE_URL=postgresql+psycopg://user:pass@host.docker.internal:5432/reglens
 
 services:
-  # ---------------------------------------------------------------------------
-  # Postgres with pgvector
-  postgres:
-    image: pgvector/pgvector:pg18
-    container_name: reglens-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: reglens
-      POSTGRES_PASSWORD: reglens
-      POSTGRES_DB: reglens
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U reglens -d reglens"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   # ---------------------------------------------------------------------------
   # Database migrations (run once then exit)
   migrate:
@@ -30,11 +12,7 @@ services:
       dockerfile: docker/api.Dockerfile
     container_name: reglens-migrate
     command: uv run alembic upgrade head
-    environment:
-      DATABASE_URL: postgresql+psycopg://reglens:reglens@postgres:5432/reglens
-    depends_on:
-      postgres:
-        condition: service_healthy
+    env_file: .env
     restart: "no"
 
   # ---------------------------------------------------------------------------
@@ -50,12 +28,9 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://reglens:reglens@postgres:5432/reglens
       A2A_INGESTION_URL: http://reglens-adk-ingest:8001
       A2A_RISK_SCORER_URL: http://reglens-adk-risk:8002
     depends_on:
-      postgres:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     volumes:
@@ -75,12 +50,9 @@ services:
       - "8010:8010"
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://reglens:reglens@postgres:5432/reglens
       A2A_INGESTION_URL: http://reglens-adk-ingest:8001
       A2A_RISK_SCORER_URL: http://reglens-adk-risk:8002
     depends_on:
-      postgres:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     volumes:
@@ -121,6 +93,3 @@ services:
       ADK_AGENT_NAME: "risk-scorer"
     volumes:
       - ./src:/app/src
-
-volumes:
-  postgres_data:
