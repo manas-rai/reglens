@@ -5,7 +5,7 @@ services:
   # ---------------------------------------------------------------------------
   # Postgres with pgvector
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg18
     container_name: reglens-postgres
     restart: unless-stopped
     environment:

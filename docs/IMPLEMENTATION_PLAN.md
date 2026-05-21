@@ -171,7 +171,7 @@ reglens/
 - `uv init` → `pyproject.toml`, `src/reglens/` layout, Python 3.11+
 - Ruff (format + lint), mypy strict on `src/`, pre-commit hooks
 - pytest + pytest-asyncio; one passing smoke test
-- `docker-compose.yml`: `postgres` (with `pgvector` extension installed via image `pgvector/pgvector:pg16`), `reglens-api`, `reglens-langgraph`, `reglens-adk-ingest`, `reglens-adk-risk`
+- `docker-compose.yml`: `postgres` (with `pgvector` extension installed via image `pgvector/pgvector:pg18`), `reglens-api`, `reglens-langgraph`, `reglens-adk-ingest`, `reglens-adk-risk`
 - `.env.example` with all keys; `config.py` using `pydantic-settings`
 - Structured JSON logging (structlog) + OTel SDK with console exporter
 - GitHub Actions: ruff, mypy, pytest on PR
