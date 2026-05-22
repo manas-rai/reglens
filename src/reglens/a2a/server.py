@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -45,7 +45,7 @@ class JsonRpcResponse(BaseModel):
 Handler = Callable[[dict[str, Any]], Awaitable[Any]]
 
 
-def make_a2a_app(card: AgentCard, handlers: dict[str, Handler]) -> FastAPI:
+def make_a2a_app(card: AgentCard, handlers: Mapping[str, Handler]) -> FastAPI:
     """Create a FastAPI app that speaks A2A JSON-RPC 2.0."""
 
     app = FastAPI(title=card.name, version=card.version)

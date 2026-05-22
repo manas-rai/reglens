@@ -54,7 +54,7 @@ async def create_run(
     async with db_session() as session:
         session.add(
             Run(
-                id=run_id,  # type: ignore[arg-type]
+                id=run_id,
                 status="pending",
                 domain=domain,
                 pdf_filename=pdf.filename,

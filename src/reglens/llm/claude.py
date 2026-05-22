@@ -18,12 +18,12 @@ DEFAULT_MODEL = "claude-sonnet-4-6"
 
 
 @lru_cache(maxsize=1)
-def _get_instructor_client() -> instructor.Instructor:
+def _get_instructor_client() -> instructor.AsyncInstructor:
     settings = get_settings()
     raw = anthropic.AsyncAnthropic(
         api_key=settings.anthropic_api_key.get_secret_value()
     )
-    return instructor.from_anthropic(raw)  # type: ignore[arg-type]
+    return instructor.from_anthropic(raw)
 
 
 async def structured_complete[T: BaseModel](

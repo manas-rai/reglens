@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from langchain_core.runnables import RunnableConfig
 from sqlalchemy import text
 
 from reglens.api import sse
@@ -58,7 +59,7 @@ async def run_pipeline(
 
         async with get_checkpointer() as checkpointer:
             graph = build_supervisor_graph(checkpointer)
-            config = {"configurable": {"thread_id": run_id}}
+            config: RunnableConfig = {"configurable": {"thread_id": run_id}}
 
             async for event in graph.astream(
                 initial_state, config=config, stream_mode="updates"
@@ -94,13 +95,15 @@ async def resume_pipeline(
             extra={"run_id": run_id, "approved": approved},
         )
 
-        from langgraph.types import Command
+        from langgraph.types import Command as LangGraphCommand
 
         async with get_checkpointer() as checkpointer:
             graph = build_supervisor_graph(checkpointer)
-            config = {"configurable": {"thread_id": run_id}}
+            config: RunnableConfig = {"configurable": {"thread_id": run_id}}
 
-            resume_cmd = Command(resume={"approved": approved, "edits": edits})
+            resume_cmd: LangGraphCommand[Any] = LangGraphCommand(
+                resume={"approved": approved, "edits": edits}
+            )
             async for event in graph.astream(
                 resume_cmd, config=config, stream_mode="updates"
             ):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from reglens.supervisor.nodes import (
     node_analyze_gaps,
@@ -15,9 +16,11 @@ from reglens.supervisor.nodes import (
 from reglens.supervisor.state import SupervisorState
 
 
-def build_supervisor_graph(checkpointer: AsyncPostgresSaver) -> StateGraph:
+def build_supervisor_graph(checkpointer: AsyncPostgresSaver) -> CompiledStateGraph:  # type: ignore[type-arg]
     """Build and compile the compliance analysis StateGraph."""
-    builder = StateGraph(SupervisorState)
+    builder: StateGraph[SupervisorState, SupervisorState, SupervisorState] = StateGraph(
+        SupervisorState
+    )
 
     builder.add_node("ingest", node_ingest)
     builder.add_node("retrieve_policies", node_retrieve_policies)
@@ -33,4 +36,4 @@ def build_supervisor_graph(checkpointer: AsyncPostgresSaver) -> StateGraph:
     builder.add_edge("generate_report", END)
 
     # interrupt() is called inside node_generate_report itself — no interrupt_before needed
-    return builder.compile(checkpointer=checkpointer)
+    return builder.compile(checkpointer=checkpointer)  # type: ignore[return-value]

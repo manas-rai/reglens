@@ -46,8 +46,7 @@ async def embed_text(text: str) -> list[float]:
         contents=text,
         config=config,
     )
-    values: list[float] = response.embeddings[0].values  # type: ignore[index]
-    return values
+    return list(response.embeddings[0].values)  # type: ignore[index, arg-type]
 
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
@@ -77,7 +76,7 @@ async def generate(
         contents=prompt,
         config=config,
     )
-    return response.text or ""  # type: ignore[return-value]
+    return response.text or ""
 
 
 async def generate_multimodal(
@@ -110,4 +109,4 @@ async def generate_multimodal(
             finish_reason,
             response.prompt_feedback,
         )
-    return response.text or ""  # type: ignore[return-value]
+    return response.text or ""
