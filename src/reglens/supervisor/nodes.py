@@ -40,6 +40,23 @@ async def _write_audit(run_id: str, node: str, payload: dict[str, Any]) -> None:
         )
 
 
+def route_after_ingest(state: SupervisorState) -> str:
+    """Route to retrieve_policies if obligations were found, else short-circuit to empty_report."""
+    return "retrieve_policies" if state.get("obligations") else "empty_report"
+
+
+async def node_empty_report(state: SupervisorState) -> dict[str, Any]:
+    """Produce an empty compliance report when ingestion found no obligations."""
+    run_id = state["run_id"]
+    regulation_ref = state.get("regulation_ref", "UNKNOWN")
+    domain = state.get("domain", "banking")
+
+    logger.warning("node_empty_report: no obligations extracted for run %s", run_id)
+    report = render_report(run_id, regulation_ref, domain, [])
+    await _write_audit(run_id, "empty_report", {"reason": "no obligations extracted"})
+    return {"final_report": report}
+
+
 async def node_ingest(state: SupervisorState) -> dict[str, Any]:
     """Call the ingestion A2A agent to extract obligations from the PDF."""
     import base64

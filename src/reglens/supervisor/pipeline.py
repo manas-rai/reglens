@@ -70,11 +70,22 @@ async def run_pipeline(
                 )
                 await sse.push(run_id, {"node": node_name, "status": "running"})
 
-        await update_run_status(run_id, "awaiting_approval")
-        await sse.push(
-            run_id, {"node": "generate_report", "status": "awaiting_approval"}
-        )
-        logger.info("Pipeline paused — awaiting approval", extra={"run_id": run_id})
+            # Distinguish interrupted (HITL gate) from naturally completed (empty report).
+            # state.next is non-empty when the graph is paused at an interrupt().
+            final_state = await graph.aget_state(config)
+
+        if final_state.next:
+            await update_run_status(run_id, "awaiting_approval")
+            await sse.push(
+                run_id, {"node": "generate_report", "status": "awaiting_approval"}
+            )
+            logger.info("Pipeline paused — awaiting approval", extra={"run_id": run_id})
+        else:
+            await update_run_status(run_id, "completed")
+            await sse.push(run_id, {"node": "done", "status": "completed"})
+            logger.info(
+                "Pipeline completed — no obligations found", extra={"run_id": run_id}
+            )
 
     except Exception as exc:
         logger.exception("Pipeline failed", extra={"run_id": run_id, "error": str(exc)})

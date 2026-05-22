@@ -70,6 +70,62 @@ def _mock_settings() -> MagicMock:
 
 
 # ---------------------------------------------------------------------------
+# route_after_ingest
+
+
+def test_route_after_ingest_with_obligations() -> None:
+    state = _make_state(obligations=[_make_obligation("OBL-001")])
+    assert nodes_module.route_after_ingest(state) == "retrieve_policies"
+
+
+def test_route_after_ingest_empty_list() -> None:
+    state = _make_state(obligations=[])
+    assert nodes_module.route_after_ingest(state) == "empty_report"
+
+
+def test_route_after_ingest_missing_key() -> None:
+    # obligations key not yet in state (before node_ingest has run — should not happen
+    # in practice, but the router must not crash)
+    state = _make_state()
+    assert nodes_module.route_after_ingest(state) == "empty_report"
+
+
+# ---------------------------------------------------------------------------
+# node_empty_report
+
+
+async def test_node_empty_report_returns_final_report() -> None:
+    db_ctx, _ = _mock_db_session()
+    with patch.object(nodes_module, "db_session", db_ctx):
+        result = await nodes_module.node_empty_report(_make_state())
+
+    assert "final_report" in result
+    report = result["final_report"]
+    assert report.summary.total_obligations == 0
+    assert report.risk_scores == []
+
+
+async def test_node_empty_report_writes_audit() -> None:
+    db_ctx, session = _mock_db_session()
+    with patch.object(nodes_module, "db_session", db_ctx):
+        await nodes_module.node_empty_report(_make_state(regulation_ref="RBI-2024"))
+
+    session.execute.assert_called_once()
+
+
+async def test_node_empty_report_uses_state_metadata() -> None:
+    db_ctx, _ = _mock_db_session()
+    with patch.object(nodes_module, "db_session", db_ctx):
+        result = await nodes_module.node_empty_report(
+            _make_state(regulation_ref="RBI-2024", domain="banking")
+        )
+
+    report = result["final_report"]
+    assert report.regulation_ref == "RBI-2024"
+    assert report.domain == "banking"
+
+
+# ---------------------------------------------------------------------------
 # _write_audit
 
 

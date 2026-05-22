@@ -28,6 +28,17 @@ def _mock_checkpointer_ctx():
     return _ctx, mock_cp
 
 
+def _mock_graph(events: list, *, interrupted: bool = True) -> AsyncMock:
+    """Build a mock graph whose astream yields events and aget_state reflects interrupt status."""
+    mock_graph = AsyncMock()
+    mock_graph.astream = MagicMock(return_value=_async_iter(events))
+    final_state = MagicMock()
+    # state.next is non-empty when the graph is paused at interrupt(), empty when it reached END
+    final_state.next = ("generate_report",) if interrupted else ()
+    mock_graph.aget_state = AsyncMock(return_value=final_state)
+    return mock_graph
+
+
 # ---------------------------------------------------------------------------
 # update_run_status
 
@@ -61,17 +72,12 @@ async def test_run_pipeline_success() -> None:
     ctx, _ = _mock_db_session()
     cp_ctx, _ = _mock_checkpointer_ctx()
 
-    mock_graph = AsyncMock()
-    mock_graph.astream = MagicMock(
-        return_value=_async_iter([{"ingest": {}}, {"generate_report": {}}])
-    )
-
     with (
         patch("reglens.supervisor.pipeline.db_session", ctx),
         patch("reglens.supervisor.pipeline.get_checkpointer", cp_ctx),
         patch(
             "reglens.supervisor.pipeline.build_supervisor_graph",
-            return_value=mock_graph,
+            return_value=_mock_graph([{"ingest": {}}, {"generate_report": {}}]),
         ),
         patch("reglens.supervisor.pipeline.sse.push", new=AsyncMock()),
     ):
@@ -82,24 +88,19 @@ async def test_run_pipeline_sse_events_pushed() -> None:
     ctx, _ = _mock_db_session()
     cp_ctx, _ = _mock_checkpointer_ctx()
 
-    mock_graph = AsyncMock()
-    mock_graph.astream = MagicMock(
-        return_value=_async_iter([{"ingest": {}}, {"generate_report": {}}])
-    )
-
     push_mock = AsyncMock()
     with (
         patch("reglens.supervisor.pipeline.db_session", ctx),
         patch("reglens.supervisor.pipeline.get_checkpointer", cp_ctx),
         patch(
             "reglens.supervisor.pipeline.build_supervisor_graph",
-            return_value=mock_graph,
+            return_value=_mock_graph([{"ingest": {}}, {"generate_report": {}}]),
         ),
         patch("reglens.supervisor.pipeline.sse.push", push_mock),
     ):
         await run_pipeline("run-002", b"pdf", "REG", "banking")
 
-    # Should have pushed: start + ingest + generate_report + awaiting_approval
+    # start + ingest + generate_report + awaiting_approval
     assert push_mock.call_count >= 3
 
 
@@ -107,22 +108,18 @@ async def test_run_pipeline_updates_status_to_awaiting_approval() -> None:
     ctx, session = _mock_db_session()
     cp_ctx, _ = _mock_checkpointer_ctx()
 
-    mock_graph = AsyncMock()
-    mock_graph.astream = MagicMock(return_value=_async_iter([]))
-
     with (
         patch("reglens.supervisor.pipeline.db_session", ctx),
         patch("reglens.supervisor.pipeline.get_checkpointer", cp_ctx),
         patch(
             "reglens.supervisor.pipeline.build_supervisor_graph",
-            return_value=mock_graph,
+            return_value=_mock_graph([]),
         ),
         patch("reglens.supervisor.pipeline.sse.push", new=AsyncMock()),
     ):
         await run_pipeline("run-003", b"pdf", "REG", "banking")
 
-    all_calls = session.execute.call_args_list
-    statuses = [c[0][1]["status"] for c in all_calls]
+    statuses = [c[0][1]["status"] for c in session.execute.call_args_list]
     assert "running" in statuses
     assert "awaiting_approval" in statuses
 
@@ -146,11 +143,38 @@ async def test_run_pipeline_handles_exception() -> None:
     ):
         await run_pipeline("run-004", b"pdf", "REG", "banking")
 
-    # Should have pushed an error event
     error_calls = [
         c for c in push_mock.call_args_list if c[0][1].get("status") == "error"
     ]
     assert len(error_calls) == 1
+
+
+async def test_run_pipeline_empty_obligations_completes_without_hitl() -> None:
+    """When graph reaches END naturally (empty report), status is completed not awaiting_approval."""
+    ctx, session = _mock_db_session()
+    cp_ctx, _ = _mock_checkpointer_ctx()
+
+    push_mock = AsyncMock()
+    with (
+        patch("reglens.supervisor.pipeline.db_session", ctx),
+        patch("reglens.supervisor.pipeline.get_checkpointer", cp_ctx),
+        patch(
+            "reglens.supervisor.pipeline.build_supervisor_graph",
+            return_value=_mock_graph(
+                [{"ingest": {}}, {"empty_report": {}}], interrupted=False
+            ),
+        ),
+        patch("reglens.supervisor.pipeline.sse.push", push_mock),
+    ):
+        await run_pipeline("run-empty", b"pdf", "REG", "banking")
+
+    statuses = [c[0][1]["status"] for c in session.execute.call_args_list]
+    assert "completed" in statuses
+    assert "awaiting_approval" not in statuses
+
+    terminal_events = [c[0][1].get("status") for c in push_mock.call_args_list]
+    assert "completed" in terminal_events
+    assert "awaiting_approval" not in terminal_events
 
 
 # ---------------------------------------------------------------------------
