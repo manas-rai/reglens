@@ -27,7 +27,6 @@ class Run(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
     domain: Mapped[str] = mapped_column(String(100), nullable=False, default="banking")
     pdf_filename: Mapped[str | None] = mapped_column(String(500))
-    matrix_filename: Mapped[str | None] = mapped_column(String(500))
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

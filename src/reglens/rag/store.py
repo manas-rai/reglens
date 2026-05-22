@@ -32,15 +32,17 @@ ON CONFLICT (id) DO UPDATE
 
 _SEARCH_SQL = """
 SELECT id, domain, section, title, text, owner, tags,
-       1 - (embedding <=> :query_vec::vector) AS relevance
+       1 - (embedding <=> CAST(:query_vec AS vector)) AS relevance
 FROM policies
 WHERE domain = :domain
-ORDER BY embedding <=> :query_vec::vector
+ORDER BY embedding <=> CAST(:query_vec AS vector)
 LIMIT :k
 """
 
 
-async def upsert_policy(session: AsyncSession, policy: Policy, embedding: list[float]) -> None:
+async def upsert_policy(
+    session: AsyncSession, policy: Policy, embedding: list[float]
+) -> None:
     await session.execute(
         text(_INSERT_SQL),
         {

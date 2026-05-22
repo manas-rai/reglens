@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import (
@@ -10,49 +11,30 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from reglens.config import get_settings
-
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-_engine = None
+from reglens.config import get_settings
+
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
-def get_engine() -> object:
-    global _engine
-    if _engine is None:
-        settings = get_settings()
-        _engine = create_async_engine(
-            settings.database_url,
-            pool_size=settings.database_pool_size,
-            max_overflow=settings.database_max_overflow,
-            echo=settings.environment == "development",
-        )
-    return _engine
-
-
-def get_session_factory() -> async_sessionmaker[AsyncSession]:
+def _get_session_factory() -> async_sessionmaker[AsyncSession]:
     global _session_factory
     if _session_factory is None:
-        from sqlalchemy.ext.asyncio import create_async_engine
-
         settings = get_settings()
         engine = create_async_engine(
             settings.database_url,
             pool_size=settings.database_pool_size,
             max_overflow=settings.database_max_overflow,
+            echo=settings.environment == "development",
         )
         _session_factory = async_sessionmaker(engine, expire_on_commit=False)
     return _session_factory
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    factory = get_session_factory()
-    async with factory() as session:
+@asynccontextmanager
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Async context manager that auto-commits on success, rolls back on exception."""
+    async with _get_session_factory().begin() as session:
         yield session
-
-
-def async_session_factory() -> AsyncSession:
-    """Return an async context-manager-compatible session (use with `async with`)."""
-    return get_session_factory()()

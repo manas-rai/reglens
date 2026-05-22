@@ -1,0 +1,73 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API (FastAPI)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "reglens.api.main:app",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+        "--reload",
+        "--reload-dir", "src"
+      ],
+      "jinja": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "LangGraph Supervisor",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "reglens.supervisor.server",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "ADK Ingestion Agent",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "reglens.agents.ingestion.server",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "ADK_AGENT_PORT": "8001",
+        "ADK_AGENT_NAME": "document-ingestion"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "ADK Risk Scorer Agent",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "reglens.agents.risk_scorer.server",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "ADK_AGENT_PORT": "8002",
+        "ADK_AGENT_NAME": "risk-scorer"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "RegLens: All Services",
+      "configurations": [
+        "ADK Ingestion Agent",
+        "ADK Risk Scorer Agent",
+        "LangGraph Supervisor",
+        "API (FastAPI)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

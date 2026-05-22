@@ -102,4 +102,12 @@ async def generate_multimodal(
         contents=parts,
         config=config,
     )
+    if not response.text:
+        candidate = response.candidates[0] if response.candidates else None
+        finish_reason = candidate.finish_reason if candidate else "NO_CANDIDATES"
+        logger.error(
+            "Gemini returned empty text. finish_reason=%s prompt_feedback=%s",
+            finish_reason,
+            response.prompt_feedback,
+        )
     return response.text or ""  # type: ignore[return-value]

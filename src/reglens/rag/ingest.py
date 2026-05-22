@@ -9,7 +9,7 @@ from typing import Any
 import yaml
 
 from reglens.llm.gemini import embed_texts
-from reglens.persistence.db import async_session_factory
+from reglens.persistence.db import db_session
 from reglens.rag.store import upsert_policy
 from reglens.schemas.policy import Policy
 
@@ -36,10 +36,9 @@ async def ingest_matrix(matrix_path: Path) -> int:
     texts = [f"{p.title}\n\n{p.text}" for p in policies]
     embeddings = await embed_texts(texts)
 
-    async with async_session_factory() as session:
+    async with db_session() as session:
         for policy, embedding in zip(policies, embeddings, strict=True):
             await upsert_policy(session, policy, embedding)
-        await session.commit()
 
     logger.info("Ingested %d policies from %s", len(policies), matrix_path)
     return len(policies)

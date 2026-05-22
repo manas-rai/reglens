@@ -17,8 +17,6 @@ class SupervisorState(TypedDict, total=False):
     # Run metadata
     run_id: str
     pdf_bytes: bytes
-    pdf_filename: str
-    matrix_path: str
     regulation_ref: str
     domain: str
 

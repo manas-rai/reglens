@@ -68,21 +68,34 @@ class A2AClient:
             "method": method,
             "params": params,
         }
-        req_bytes = len(str(payload))
-        span.set_attribute("a2a.request_bytes", req_bytes)
+        span.set_attribute("a2a.request_bytes", len(str(payload)))
 
         response = await self._client.post(
             f"{self._base_url}/jsonrpc",
             json=payload,
         )
-        response.raise_for_status()
-
         span.set_attribute("a2a.response_bytes", len(response.content))
         span.set_attribute("a2a.status_code", response.status_code)
 
-        body = response.json()
+        # Try to parse the JSON-RPC body first — the server always returns one,
+        # even on 500s. This gives us the real error message before raise_for_status
+        # discards it.
+        try:
+            body = response.json()
+        except Exception:
+            # Not JSON — treat as a raw infrastructure error
+            response.raise_for_status()
+            return None
+
         if "error" in body and body["error"] is not None:
-            raise A2AError(f"A2A error from {method}: {body['error']}")
+            err = body["error"]
+            msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+            # Application-level errors are not retryable — raise A2AError directly.
+            raise A2AError(f"[{method}] {msg}")
+
+        # For non-JSON-RPC errors (e.g. proxy 502), still surface HTTP status.
+        if response.is_error:
+            response.raise_for_status()
 
         return body.get("result")
 

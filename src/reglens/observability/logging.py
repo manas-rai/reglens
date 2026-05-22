@@ -51,7 +51,16 @@ def configure_logging(level: str = "INFO") -> None:
     )
     _listener.start()
 
-    for name in ("httpx", "httpcore", "hpack", "grpc"):
+    for name in (
+        "httpx",
+        "httpcore",
+        "hpack",
+        "grpc",
+        "sqlalchemy.engine",  # hides BEGIN/COMMIT/SQL statements
+        "sqlalchemy.pool",  # hides connection pool chatter
+        "langgraph",  # hides internal LangGraph state transitions
+        "uvicorn.access",  # hides per-request access logs (use OTel instead)
+    ):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 

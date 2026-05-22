@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # JSON-RPC 2.0 envelope models
 
+
 class JsonRpcRequest(BaseModel):
     jsonrpc: str = "2.0"
     id: str | int | None = None
@@ -68,7 +69,10 @@ def make_a2a_app(card: AgentCard, handlers: dict[str, Handler]) -> FastAPI:
             return JSONResponse(
                 JsonRpcResponse(
                     id=req_id,
-                    error={"code": -32601, "message": f"Method not found: {req.method}"},
+                    error={
+                        "code": -32601,
+                        "message": f"Method not found: {req.method}",
+                    },
                 ).model_dump(mode="json")
             )
 

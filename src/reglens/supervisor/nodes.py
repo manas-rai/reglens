@@ -13,8 +13,7 @@ from reglens.agents.gap_analyzer.node import analyze_all_gaps
 from reglens.agents.knowledge.node import retrieve_all_policies
 from reglens.agents.report.renderer import render_report
 from reglens.config import get_settings
-from reglens.persistence.db import async_session_factory
-from reglens.persistence.models import AuditLog, Run
+from reglens.persistence.db import db_session
 from reglens.schemas.gap import GapResult, GapStatus
 from reglens.schemas.obligation import Obligation
 from reglens.schemas.policy import PolicyMatch
@@ -27,9 +26,18 @@ _RISK_CONCURRENCY = 5
 
 
 async def _write_audit(run_id: str, node: str, payload: dict[str, Any]) -> None:
-    async with async_session_factory() as session:
-        session.add(AuditLog(run_id=run_id, node=node, payload=payload))  # type: ignore[arg-type]
-        await session.commit()
+    import json
+
+    from sqlalchemy import text
+
+    async with db_session() as session:
+        await session.execute(
+            text(
+                "INSERT INTO audit_log (run_id, node, payload)"
+                " VALUES (CAST(:run_id AS uuid), :node, CAST(:payload AS jsonb))"
+            ),
+            {"run_id": run_id, "node": node, "payload": json.dumps(payload)},
+        )
 
 
 async def node_ingest(state: SupervisorState) -> dict[str, Any]:
@@ -44,7 +52,9 @@ async def node_ingest(state: SupervisorState) -> dict[str, Any]:
 
     logger.info("node_ingest: extracting obligations for run %s", run_id)
 
-    async with A2AClient(settings.a2a_ingestion_url) as client:
+    async with A2AClient(
+        settings.a2a_ingestion_url, timeout=settings.a2a_timeout_seconds
+    ) as client:
         raw = await client.call(
             "extract_obligations",
             {
@@ -64,9 +74,13 @@ async def node_retrieve_policies(state: SupervisorState) -> dict[str, Any]:
     run_id = state["run_id"]
     obligations: list[Obligation] = state["obligations"]
 
-    logger.info("node_retrieve_policies: %d obligations for run %s", len(obligations), run_id)
+    logger.info(
+        "node_retrieve_policies: %d obligations for run %s", len(obligations), run_id
+    )
     policy_matches = await retrieve_all_policies(obligations)
-    await _write_audit(run_id, "retrieve_policies", {"matched_obligations": len(policy_matches)})
+    await _write_audit(
+        run_id, "retrieve_policies", {"matched_obligations": len(policy_matches)}
+    )
     return {"policy_matches": policy_matches}
 
 
@@ -76,7 +90,9 @@ async def node_analyze_gaps(state: SupervisorState) -> dict[str, Any]:
     obligations: list[Obligation] = state["obligations"]
     policy_matches: dict[str, list[PolicyMatch]] = state.get("policy_matches", {})
 
-    logger.info("node_analyze_gaps: %d obligations for run %s", len(obligations), run_id)
+    logger.info(
+        "node_analyze_gaps: %d obligations for run %s", len(obligations), run_id
+    )
     gap_results = await analyze_all_gaps(obligations, policy_matches)
     gap_summary = {s: sum(1 for g in gap_results if g.status == s) for s in GapStatus}
     await _write_audit(run_id, "analyze_gaps", {"gap_summary": gap_summary})
@@ -95,8 +111,12 @@ async def node_score_risks(state: SupervisorState) -> dict[str, Any]:
 
     async def _score_one(gap: GapResult) -> RiskScore:
         async with semaphore:
-            async with A2AClient(settings.a2a_risk_scorer_url) as client:
-                raw = await client.call("score_gap", {"gap_result": gap.model_dump(mode="json")})
+            async with A2AClient(
+                settings.a2a_risk_scorer_url, timeout=settings.a2a_timeout_seconds
+            ) as client:
+                raw = await client.call(
+                    "score_gap", {"gap_result": gap.model_dump(mode="json")}
+                )
             return RiskScore.model_validate(raw)
 
     risk_scores = list(await asyncio.gather(*[_score_one(g) for g in gap_results]))
@@ -112,10 +132,16 @@ async def node_generate_report(state: SupervisorState) -> dict[str, Any]:
     domain = state.get("domain", "banking")
 
     draft = render_report(run_id, regulation_ref, domain, risk_scores)
-    await _write_audit(run_id, "generate_report", {"total_obligations": draft.summary.total_obligations})
+    await _write_audit(
+        run_id,
+        "generate_report",
+        {"total_obligations": draft.summary.total_obligations},
+    )
 
     # HITL gate — pause until POST /runs/{id}/approve resumes the graph
-    human_input: dict[str, Any] = interrupt({"draft_report": draft.model_dump(mode="json")})
+    human_input: dict[str, Any] = interrupt(
+        {"draft_report": draft.model_dump(mode="json")}
+    )
 
     approved: bool = human_input.get("approved", False)
     edits: list[dict[str, Any]] = human_input.get("edits", [])
@@ -126,13 +152,22 @@ async def node_generate_report(state: SupervisorState) -> dict[str, Any]:
     final = _apply_edits(draft, edits)
     await _write_audit(run_id, "approved", {"edit_count": len(edits)})
 
-    async with async_session_factory() as session:
-        run = await session.get(Run, run_id)
-        if run:
-            run.status = "completed"  # type: ignore[assignment]
-            await session.commit()
+    async with db_session() as session:
+        from sqlalchemy import text
 
-    return {"draft_report": draft, "final_report": final, "approved": True, "edits": edits}
+        await session.execute(
+            text(
+                "UPDATE runs SET status = 'completed', updated_at = now() WHERE id = CAST(:id AS uuid)"
+            ),
+            {"id": run_id},
+        )
+
+    return {
+        "draft_report": draft,
+        "final_report": final,
+        "approved": True,
+        "edits": edits,
+    }
 
 
 def _apply_edits(
@@ -156,9 +191,7 @@ def _apply_edits(
         rs = scores_by_id[gap_id]
         new_status = edit.get("status")
         if new_status:
-            gap = rs.gap_result.model_copy(
-                update={"status": GapStatus(new_status)}
-            )
+            gap = rs.gap_result.model_copy(update={"status": GapStatus(new_status)})
             scores_by_id[gap_id] = rs.model_copy(update={"gap_result": gap})
 
     updated_scores = list(scores_by_id.values())

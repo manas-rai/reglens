@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from reglens.llm.gemini import embed_text
-from reglens.persistence.db import async_session_factory
+from reglens.persistence.db import db_session
 from reglens.rag.store import search_policies
 from reglens.schemas.obligation import Obligation
 from reglens.schemas.policy import Policy, PolicyMatch
@@ -21,7 +21,7 @@ async def retrieve_matching_policies(
     query = f"{obligation.clause}: {obligation.text}"
     embedding = await embed_text(query)
 
-    async with async_session_factory() as session:
+    async with db_session() as session:
         rows = await search_policies(session, embedding, obligation.domain, k=k)
 
     matches: list[PolicyMatch] = []

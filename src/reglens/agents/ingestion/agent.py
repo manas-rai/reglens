@@ -41,6 +41,16 @@ _OBLIGATION_SCHEMA = {
 }
 
 
+def _strip_markdown_fences(text: str) -> str:
+    """Remove ```json ... ``` or ``` ... ``` wrappers Gemini sometimes adds."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]  # drop opening fence line
+        if text.endswith("```"):
+            text = text[: text.rfind("```")]
+    return text.strip()
+
+
 async def extract_obligations(
     pdf_bytes: bytes,
     regulation_ref: str,
@@ -66,16 +76,16 @@ async def extract_obligations(
         parts=parts,
         system_instruction=SYSTEM_PROMPT,
         response_schema=_OBLIGATION_SCHEMA,
+        max_output_tokens=65536,
     )
 
+    cleaned = _strip_markdown_fences(raw)
     try:
-        items: list[dict[str, Any]] = json.loads(raw)
+        items: list[dict[str, Any]] = json.loads(cleaned)
     except json.JSONDecodeError:
-        logger.error("Gemini returned non-JSON ingestion output: %s", raw[:200])
+        logger.error("Gemini returned non-JSON ingestion output:\n%s", cleaned[:500])
         raise
 
     obligations = [Obligation.model_validate(item) for item in items]
-    logger.info(
-        "Extracted %d obligations from %s", len(obligations), regulation_ref
-    )
+    logger.info("Extracted %d obligations from %s", len(obligations), regulation_ref)
     return obligations
