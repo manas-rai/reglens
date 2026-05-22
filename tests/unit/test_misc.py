@@ -375,17 +375,22 @@ def test_supervisor_server_health() -> None:
 
 
 def test_api_main_create_app() -> None:
-    from unittest.mock import MagicMock
+    import os
+    import sys
 
-    import reglens.api.main as main_module
+    # reglens.api.main runs `app = create_app()` at module level, which calls
+    # get_settings(). Provide required secrets via env vars so the import and
+    # the explicit create_app() call both succeed in CI (no .env file present).
+    env = {
+        "API_KEY": "test-key",
+        "GEMINI_API_KEY": "test-gemini",
+        "ANTHROPIC_API_KEY": "test-anthropic",
+        "DATABASE_URL": "postgresql+psycopg://u:p@localhost/db",
+    }
+    sys.modules.pop("reglens.api.main", None)
+    with patch.dict(os.environ, env):
+        import reglens.api.main as main_module
 
-    mock_settings = MagicMock()
-    mock_settings.log_level = "INFO"
-    mock_settings.otel_service_name = "test"
-    mock_settings.otel_exporter_endpoint = None
-    mock_settings.environment = "test"
-
-    with patch.object(main_module, "get_settings", return_value=mock_settings):
         app = main_module.create_app()
 
     assert app is not None
@@ -427,12 +432,21 @@ async def test_get_checkpointer_yields_saver() -> None:
 
 
 def test_get_settings_is_cached() -> None:
+    import os
+
     from reglens.config import get_settings
 
+    env = {
+        "API_KEY": "test-key",
+        "GEMINI_API_KEY": "test-gemini",
+        "ANTHROPIC_API_KEY": "test-anthropic",
+        "DATABASE_URL": "postgresql+psycopg://u:p@localhost/db",
+    }
     get_settings.cache_clear()
     try:
-        s1 = get_settings()
-        s2 = get_settings()
+        with patch.dict(os.environ, env):
+            s1 = get_settings()
+            s2 = get_settings()
         assert s1 is s2
     finally:
         get_settings.cache_clear()
