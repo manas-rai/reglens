@@ -15,7 +15,9 @@ from reglens.rag.ingest import ingest_matrix
 
 async def main() -> None:
     configure_logging()
-    matrix_path = Path(__file__).parent.parent / "fixtures" / "control_matrices" / "banking.yaml"
+    matrix_path = (
+        Path(__file__).parent.parent / "fixtures" / "control_matrices" / "banking.yaml"
+    )
     if not matrix_path.exists():
         print(f"Matrix not found: {matrix_path}", file=sys.stderr)
         sys.exit(1)
