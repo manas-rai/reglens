@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import sys
 
-from evals.behavioral._runner import print_mode_banner, score_risk
-from evals.component._common import exit_on_failure, print_table
+from evals.behavioral._runner import capture_guards, print_mode_banner, score_risk
+from evals.component._common import assert_threshold, exit_on_failure, print_table
+
+GUARD_FIRE_RATE_CEILING = 0.25
 
 _LEVEL_RANK = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 
@@ -53,35 +55,54 @@ def main() -> int:
     print_mode_banner("monotonicity")
     violations: list[str] = []
     checks = 0
-    for case in CASES:
-        prev_rank: int | None = None
-        prev_score: float | None = None
-        for step in case["ladder"]:
-            item = {
-                "obligation_text": case["obligation_text"],
-                "obligation_type": case["obligation_type"],
-                **step,
-            }
-            level, score = score_risk(item)
-            rank = _LEVEL_RANK[level]
-            if prev_rank is not None:
-                checks += 1
-                if rank > prev_rank or score > (prev_score or 0) + 0.01:
-                    violations.append(
-                        f"{case['scenario']}: rank/score not monotonic "
-                        f"({prev_rank}->{rank}, {prev_score}->{score})"
-                    )
-            prev_rank = rank
-            prev_score = score
+    total_calls = 0
+    with capture_guards() as guards:
+        for case in CASES:
+            prev_rank: int | None = None
+            prev_score: float | None = None
+            for step in case["ladder"]:
+                item = {
+                    "obligation_text": case["obligation_text"],
+                    "obligation_type": case["obligation_type"],
+                    **step,
+                }
+                level, score = score_risk(item)
+                total_calls += 1
+                rank = _LEVEL_RANK[level]
+                if prev_rank is not None:
+                    checks += 1
+                    if rank > prev_rank or score > (prev_score or 0) + 0.01:
+                        violations.append(
+                            f"{case['scenario']}: rank/score not monotonic "
+                            f"({prev_rank}->{rank}, {prev_score}->{score})"
+                        )
+                prev_rank = rank
+                prev_score = score
 
+    guard_fire_rate = len(guards.fires) / total_calls if total_calls else 0.0
     print_table(
         "Monotonicity",
-        [("checks", checks), ("violations", len(violations))],
+        [
+            ("checks", checks),
+            ("violations", len(violations)),
+            ("guard_fire_count", len(guards.fires)),
+            ("guard_fire_rate", guard_fire_rate),
+        ],
     )
     for v in violations:
         print(f"  ❌ {v}")
+    for g in guards.fires:
+        print(f"  ⚠️  {g['guard']}: {g['detail']}")
 
-    failed = ["monotonicity"] if violations else []
+    failed: list[str] = []
+    if violations:
+        failed.append("monotonicity")
+    if not assert_threshold(
+        "guard_fire_rate (inverted)",
+        1 - guard_fire_rate,
+        1 - GUARD_FIRE_RATE_CEILING,
+    ):
+        failed.append("guard_fire_rate")
     exit_on_failure(failed)
     return 0
 

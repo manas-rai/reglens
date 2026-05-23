@@ -12,15 +12,58 @@ Real signal only comes from LIVE_LLM=1.
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
+from contextlib import contextmanager
+from typing import TYPE_CHECKING
 
 from evals.component.gap_eval import _live_classify, _stub_classify
 from evals.component.risk_eval import _live_score, _stub_score
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 
 def is_live() -> bool:
     return os.environ.get("LIVE_LLM") == "1"
+
+
+class GuardCapture(logging.Handler):
+    """Capture L1 guard failures emitted on the 'reglens.guards' logger.
+
+    Guards soft-fail by design (log + OTel event, never raise). For
+    behavioral evals we want to surface those fires so a 'correct'
+    classification arrived at via ungrounded reasoning is visible.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.WARNING)
+        self.fires: list[dict[str, str]] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.getMessage() != "guard_failed":
+            return
+        self.fires.append(
+            {
+                "guard": str(getattr(record, "guard", "?")),
+                "detail": str(getattr(record, "detail", "")),
+            }
+        )
+
+
+@contextmanager
+def capture_guards() -> Iterator[GuardCapture]:
+    cap = GuardCapture()
+    logger = logging.getLogger("reglens.guards")
+    prev_level = logger.level
+    logger.addHandler(cap)
+    logger.setLevel(logging.WARNING)
+    try:
+        yield cap
+    finally:
+        logger.removeHandler(cap)
+        logger.setLevel(prev_level)
 
 
 def print_mode_banner(suite: str) -> None:

@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import sys
 
-from evals.behavioral._runner import classify_gap, print_mode_banner
-from evals.component._common import exit_on_failure, print_table
+from evals.behavioral._runner import capture_guards, classify_gap, print_mode_banner
+from evals.component._common import assert_threshold, exit_on_failure, print_table
+
+GUARD_FIRE_RATE_CEILING = 0.25
 
 CASES: list[dict] = [
     {
@@ -45,28 +47,50 @@ def main() -> int:
     print_mode_banner("counterfactual")
     pass_count = 0
     failures: list[str] = []
-    for case in CASES:
-        with_status = classify_gap(case["obligation_text"], [case["supporting_policy"]])
-        without_status = classify_gap(case["obligation_text"], [])
-        ok_with = with_status == case["expected_with"]
-        ok_without = without_status == case["expected_without"]
-        if ok_with and ok_without:
-            pass_count += 1
-        else:
-            failures.append(
-                f"{case['scenario']}: with={with_status} (expected {case['expected_with']}), "
-                f"without={without_status} (expected {case['expected_without']})"
+    total_calls = 0
+    with capture_guards() as guards:
+        for case in CASES:
+            with_status = classify_gap(
+                case["obligation_text"], [case["supporting_policy"]]
             )
+            without_status = classify_gap(case["obligation_text"], [])
+            total_calls += 2
+            ok_with = with_status == case["expected_with"]
+            ok_without = without_status == case["expected_without"]
+            if ok_with and ok_without:
+                pass_count += 1
+            else:
+                failures.append(
+                    f"{case['scenario']}: with={with_status} (expected {case['expected_with']}), "
+                    f"without={without_status} (expected {case['expected_without']})"
+                )
 
     accuracy = pass_count / len(CASES)
+    guard_fire_rate = len(guards.fires) / total_calls if total_calls else 0.0
     print_table(
         "Counterfactual",
-        [("accuracy", accuracy), ("passed", pass_count), ("total", len(CASES))],
+        [
+            ("accuracy", accuracy),
+            ("passed", pass_count),
+            ("total", len(CASES)),
+            ("guard_fire_count", len(guards.fires)),
+            ("guard_fire_rate", guard_fire_rate),
+        ],
     )
     for f in failures:
         print(f"  ❌ {f}")
+    for g in guards.fires:
+        print(f"  ⚠️  {g['guard']}: {g['detail']}")
 
-    failed = ["counterfactual"] if accuracy < 1.0 else []
+    failed: list[str] = []
+    if accuracy < 1.0:
+        failed.append("accuracy")
+    if not assert_threshold(
+        "guard_fire_rate (inverted)",
+        1 - guard_fire_rate,
+        1 - GUARD_FIRE_RATE_CEILING,
+    ):
+        failed.append("guard_fire_rate")
     exit_on_failure(failed)
     return 0
 
