@@ -3,13 +3,17 @@
 For the same obligation, when we move from COMPLIANT -> PARTIAL_GAP -> GAP,
 the assigned risk_score must be non-decreasing. Catches inverted scoring
 logic and noisy outputs.
+
+Offline (stub) mode: harness smoke test only. The stub maps gap_status
+deterministically, so monotonicity is trivially true. Real signal
+requires LIVE_LLM=1.
 """
 
 from __future__ import annotations
 
 import sys
 
-from evals.behavioral._runner import score_risk
+from evals.behavioral._runner import print_mode_banner, score_risk
 from evals.component._common import exit_on_failure, print_table
 
 _LEVEL_RANK = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -46,6 +50,7 @@ CASES: list[dict] = [
 
 
 def main() -> int:
+    print_mode_banner("monotonicity")
     violations: list[str] = []
     checks = 0
     for case in CASES:

@@ -3,13 +3,17 @@
 If the gap classifier is robust, surface variations in wording must not flip
 its decision. We allow a tolerance: at least M of N rephrasings agree with
 the anchor.
+
+Offline (stub) mode: harness smoke test only. The stub uses token overlap,
+so rewordings that preserve the salient tokens will trivially match.
+Real signal requires LIVE_LLM=1.
 """
 
 from __future__ import annotations
 
 import sys
 
-from evals.behavioral._runner import classify_gap
+from evals.behavioral._runner import classify_gap, print_mode_banner
 from evals.component._common import assert_threshold, exit_on_failure, print_table
 
 CASES: list[dict] = [
@@ -42,6 +46,7 @@ CONSISTENCY_THRESHOLD = 0.66  # at least 2/3 variants match the anchor
 
 
 def main() -> int:
+    print_mode_banner("invariance")
     per_scenario: list[float] = []
     failures: list[str] = []
     for case in CASES:

@@ -3,13 +3,16 @@
 Each case asserts a specific (obligation, policy_matches) tuple yields the
 expected GapStatus. Mirrors the "planted gap" verification from the MVP
 spec; lets us regress on coverage of known-failure scenarios.
+
+Offline (stub) mode: harness smoke test only — the stub classifier is
+tuned to satisfy these cases. Real signal requires LIVE_LLM=1.
 """
 
 from __future__ import annotations
 
 import sys
 
-from evals.behavioral._runner import classify_gap
+from evals.behavioral._runner import classify_gap, print_mode_banner
 from evals.component._common import exit_on_failure, print_table
 
 # (obligation_text, matched_policies, expected_status, scenario_name)
@@ -52,6 +55,7 @@ CASES: list[tuple[str, list[dict], str, str]] = [
 
 
 def main() -> int:
+    print_mode_banner("competency")
     correct = 0
     mismatches: list[str] = []
     for obl, matches, expected, name in CASES:

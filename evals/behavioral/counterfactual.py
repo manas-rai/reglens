@@ -4,13 +4,17 @@ For each case: with the supporting policy present, status should be
 COMPLIANT (or at least not GAP). After removing the policy, the same
 obligation must classify as GAP or PARTIAL_GAP. Catches classifiers
 that ignore the retrieved evidence and rely on prior alone.
+
+Offline (stub) mode: harness smoke test only. The stub returns GAP
+whenever matched_policies is empty by construction, so this test
+trivially passes against it. Real signal requires LIVE_LLM=1.
 """
 
 from __future__ import annotations
 
 import sys
 
-from evals.behavioral._runner import classify_gap
+from evals.behavioral._runner import classify_gap, print_mode_banner
 from evals.component._common import exit_on_failure, print_table
 
 CASES: list[dict] = [
@@ -38,6 +42,7 @@ CASES: list[dict] = [
 
 
 def main() -> int:
+    print_mode_banner("counterfactual")
     pass_count = 0
     failures: list[str] = []
     for case in CASES:
