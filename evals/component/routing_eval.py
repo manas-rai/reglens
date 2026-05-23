@@ -12,7 +12,7 @@ from evals.component._common import (
     print_table,
 )
 from reglens.schemas.obligation import Obligation
-from reglens.supervisor.nodes import route_after_ingest
+from reglens.supervisor.routing import route_after_ingest
 
 ACCURACY_THRESHOLD = 1.0  # Routing must be perfect — deterministic logic.
 

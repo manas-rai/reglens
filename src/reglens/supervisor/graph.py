@@ -13,8 +13,8 @@ from reglens.supervisor.nodes import (
     node_ingest,
     node_retrieve_policies,
     node_score_risks,
-    route_after_ingest,
 )
+from reglens.supervisor.routing import route_after_ingest
 from reglens.supervisor.state import SupervisorState
 
 
