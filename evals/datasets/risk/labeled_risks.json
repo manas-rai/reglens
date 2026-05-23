@@ -1,0 +1,186 @@
+{
+  "description": "Ground-truth (gap -> RiskLevel) for risk scorer eval. 'acceptable' captures adjacent levels (used for weighted-accuracy partial credit).",
+  "domain": "banking",
+  "items": [
+    {
+      "scenario": "PMLA 10-year record retention missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "All transaction records shall be maintained for 10 years from cessation under PMLA.",
+      "gap_status": "gap",
+      "gap_description": "No PMLA record retention policy exists.",
+      "expected_risk_level": "critical",
+      "acceptable_risk_levels": ["critical", "high"],
+      "expected_score_range": [8.0, 10.0]
+    },
+    {
+      "scenario": "Cyber incident reporting to RBI within 6 hours missing",
+      "obligation_type": "reporting",
+      "obligation_text": "Cyber security incidents shall be reported to RBI within 6 hours of detection.",
+      "gap_status": "gap",
+      "gap_description": "No 6-hour cyber incident reporting procedure exists.",
+      "expected_risk_level": "critical",
+      "acceptable_risk_levels": ["critical", "high"],
+      "expected_score_range": [8.0, 10.0]
+    },
+    {
+      "scenario": "Unauthorized transaction customer compensation missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Banks shall compensate customers for unauthorized electronic transactions within 10 working days.",
+      "gap_status": "gap",
+      "gap_description": "No compensation policy for unauthorized transactions.",
+      "expected_risk_level": "high",
+      "acceptable_risk_levels": ["critical", "high"],
+      "expected_score_range": [6.0, 9.0]
+    },
+    {
+      "scenario": "Whistleblower mechanism missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Banks shall establish a Whistleblower / Vigil Mechanism.",
+      "gap_status": "gap",
+      "gap_description": "No whistleblower mechanism in place.",
+      "expected_risk_level": "high",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [5.5, 8.0]
+    },
+    {
+      "scenario": "PEP enhanced due diligence missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Enhanced Due Diligence shall be performed for Politically Exposed Persons.",
+      "gap_status": "gap",
+      "gap_description": "No PEP EDD procedure exists.",
+      "expected_risk_level": "high",
+      "acceptable_risk_levels": ["critical", "high"],
+      "expected_score_range": [6.5, 9.0]
+    },
+    {
+      "scenario": "Wire transfer AML monitoring missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Banks shall monitor wire transfers for originator and beneficiary information.",
+      "gap_status": "gap",
+      "gap_description": "Existing AML policy does not cover wire transfer screening.",
+      "expected_risk_level": "high",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [5.5, 8.0]
+    },
+    {
+      "scenario": "Leverage Ratio monitoring missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Banks shall maintain Leverage Ratio of at least 4%.",
+      "gap_status": "gap",
+      "gap_description": "No Leverage Ratio policy or monitoring exists.",
+      "expected_risk_level": "high",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [5.5, 8.0]
+    },
+    {
+      "scenario": "NSFR policy missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Banks shall maintain NSFR of at least 100%.",
+      "gap_status": "gap",
+      "gap_description": "No NSFR policy or monitoring exists.",
+      "expected_risk_level": "high",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [5.5, 8.0]
+    },
+    {
+      "scenario": "BCP/DR testing missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Banks shall conduct DR drills annually with documented results.",
+      "gap_status": "gap",
+      "gap_description": "No BCP/DR testing documentation exists.",
+      "expected_risk_level": "medium",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [4.0, 7.0]
+    },
+    {
+      "scenario": "Vendor IT risk management missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Banks shall conduct due diligence on third-party IT service providers.",
+      "gap_status": "gap",
+      "gap_description": "No vendor risk management framework exists.",
+      "expected_risk_level": "medium",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [4.0, 7.0]
+    },
+    {
+      "scenario": "Investment portfolio fair value missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Investment portfolios shall be valued at fair value at least quarterly.",
+      "gap_status": "gap",
+      "gap_description": "No fair value valuation policy exists.",
+      "expected_risk_level": "medium",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [4.0, 7.0]
+    },
+    {
+      "scenario": "Audit Committee independence missing",
+      "obligation_type": "mandatory",
+      "obligation_text": "Audit Committee shall comprise majority independent directors.",
+      "gap_status": "gap",
+      "gap_description": "No formal Audit Committee independence policy.",
+      "expected_risk_level": "medium",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [4.0, 7.0]
+    },
+    {
+      "scenario": "High-risk KYC review partial",
+      "obligation_type": "mandatory",
+      "obligation_text": "High-risk customer KYC shall be reviewed every 6 months.",
+      "gap_status": "partial_gap",
+      "gap_description": "Existing policy covers annual review for medium-risk but not 6-monthly for high-risk.",
+      "expected_risk_level": "medium",
+      "acceptable_risk_levels": ["medium", "low"],
+      "expected_score_range": [3.0, 6.0]
+    },
+    {
+      "scenario": "MCLR disclosure to customers missing",
+      "obligation_type": "disclosure",
+      "obligation_text": "Banks shall disclose MCLR/EBR rates to customers at loan sanction.",
+      "gap_status": "gap",
+      "gap_description": "No MCLR disclosure policy exists.",
+      "expected_risk_level": "low",
+      "acceptable_risk_levels": ["medium", "low"],
+      "expected_score_range": [2.0, 5.0]
+    },
+    {
+      "scenario": "Large Exposure Returns submission missing",
+      "obligation_type": "reporting",
+      "obligation_text": "Banks shall submit Large Exposure Returns quarterly.",
+      "gap_status": "gap",
+      "gap_description": "No Large Exposure reporting framework exists.",
+      "expected_risk_level": "high",
+      "acceptable_risk_levels": ["high", "medium"],
+      "expected_score_range": [5.5, 8.0]
+    },
+    {
+      "scenario": "Related party lending limits missing",
+      "obligation_type": "prohibited",
+      "obligation_text": "Banks shall not extend credit to related parties beyond Connected Lending limits.",
+      "gap_status": "gap",
+      "gap_description": "No related party lending policy exists.",
+      "expected_risk_level": "critical",
+      "acceptable_risk_levels": ["critical", "high"],
+      "expected_score_range": [7.5, 10.0]
+    },
+    {
+      "scenario": "Compliant KYC obligation",
+      "obligation_type": "mandatory",
+      "obligation_text": "Banks shall maintain Customer Identification Programme.",
+      "gap_status": "compliant",
+      "gap_description": null,
+      "expected_risk_level": "none",
+      "acceptable_risk_levels": ["none"],
+      "expected_score_range": [0.0, 0.0]
+    },
+    {
+      "scenario": "Not applicable (insurance) obligation",
+      "obligation_type": "mandatory",
+      "obligation_text": "Insurers shall maintain a solvency ratio of at least 150%.",
+      "gap_status": "not_applicable",
+      "gap_description": null,
+      "expected_risk_level": "none",
+      "acceptable_risk_levels": ["none"],
+      "expected_score_range": [0.0, 0.0]
+    }
+  ]
+}

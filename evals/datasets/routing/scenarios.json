@@ -1,0 +1,42 @@
+{
+  "description": "Ground-truth state -> expected_node for supervisor router unit eval.",
+  "items": [
+    {
+      "scenario": "Standard non-empty obligations from ingestion",
+      "state": {
+        "run_id": "test-001",
+        "obligations": [
+          {"id": "OBL-1", "regulation_ref": "R", "clause": "§1", "text": "T"}
+        ]
+      },
+      "expected_node": "retrieve_policies"
+    },
+    {
+      "scenario": "Empty obligation list (PDF had nothing extractable)",
+      "state": {
+        "run_id": "test-002",
+        "obligations": []
+      },
+      "expected_node": "empty_report"
+    },
+    {
+      "scenario": "obligations key missing entirely",
+      "state": {
+        "run_id": "test-003"
+      },
+      "expected_node": "empty_report"
+    },
+    {
+      "scenario": "Many obligations",
+      "state": {
+        "run_id": "test-004",
+        "obligations": [
+          {"id": "O-1", "regulation_ref": "R", "clause": "§1", "text": "T1"},
+          {"id": "O-2", "regulation_ref": "R", "clause": "§2", "text": "T2"},
+          {"id": "O-3", "regulation_ref": "R", "clause": "§3", "text": "T3"}
+        ]
+      },
+      "expected_node": "retrieve_policies"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ from typing import Any
 
 from google.genai import types as genai_types
 
+from evals.guards.llm_guards import check_obligation_density
 from reglens.agents.ingestion.prompts import SYSTEM_PROMPT
 from reglens.errors import IngestionError, LLMEmptyResponseError
 from reglens.llm.gemini import generate_multimodal
@@ -98,5 +99,11 @@ async def extract_obligations(
         obligations = [Obligation.model_validate(item) for item in items]
     except Exception as exc:
         raise IngestionError(f"Obligation schema validation failed: {exc}") from exc
+
+    # L1 guard — use max(page) from extracted obligations as a proxy for
+    # document length when no explicit page count is available.
+    inferred_pages = max((o.page or 0 for o in obligations), default=0) or None
+    check_obligation_density(obligations, inferred_pages).emit()
+
     logger.info("Extracted %d obligations from %s", len(obligations), regulation_ref)
     return obligations
