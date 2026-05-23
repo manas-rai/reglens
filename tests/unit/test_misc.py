@@ -269,8 +269,6 @@ async def test_score_gap_real_gap_calls_gemini() -> None:
 
 
 async def test_score_gap_invalid_json_raises() -> None:
-    import json
-
     from reglens.agents.risk_scorer import agent as risk_agent
     from reglens.schemas.gap import GapResult, GapStatus
     from reglens.schemas.obligation import Obligation
@@ -282,10 +280,12 @@ async def test_score_gap_invalid_json_raises() -> None:
         reasoning="no coverage",
     )
 
+    from reglens.errors import LLMValidationError
+
     with (
         patch.object(risk_agent, "_load_rubric", return_value="rubric text"),
         patch.object(risk_agent, "generate", new=AsyncMock(return_value="not-json")),
-        pytest.raises(json.JSONDecodeError),
+        pytest.raises(LLMValidationError),
     ):
         await risk_agent.score_gap(gap)
 
@@ -478,3 +478,89 @@ async def test_a2a_client_is_error_no_jsonrpc_error_raises() -> None:
     with pytest.raises(__import__("httpx").HTTPStatusError):
         await client.call("my_method", {})
     await client.aclose()
+
+
+async def test_a2a_client_transport_error_after_retries() -> None:
+    """A2ATransportError is raised when all retry attempts are exhausted."""
+    from reglens.a2a.client import A2AClient
+    from reglens.errors import A2ATransportError
+
+    client = A2AClient("http://agent:8001")
+    client._client.post = AsyncMock(side_effect=httpx.ConnectError("refused"))  # type: ignore[method-assign]
+
+    with pytest.raises(A2ATransportError, match="unreachable after"):
+        await client.call("ingest", {})
+    await client.aclose()
+
+
+async def test_a2a_client_call_sets_model_span_attribute() -> None:
+    """Passing model= to call() records it as an OTel span attribute (no exception path)."""
+    from reglens.a2a.client import A2AClient
+
+    client = A2AClient("http://agent:8001")
+    ok_resp = MagicMock(spec=__import__("httpx").Response)
+    ok_resp.json.return_value = {"jsonrpc": "2.0", "id": "x", "result": {"ok": True}}
+    ok_resp.status_code = 200
+    ok_resp.content = b"{}"
+    ok_resp.is_error = False
+    client._client.post = AsyncMock(return_value=ok_resp)  # type: ignore[method-assign]
+
+    result = await client.call("score_gap", {}, model="gemini-2.5-flash")
+    assert result == {"ok": True}
+    await client.aclose()
+
+
+async def test_risk_scorer_empty_response_raises() -> None:
+    """LLMEmptyResponseError is raised when Gemini returns empty string for risk scoring."""
+    from reglens.agents.risk_scorer import agent as risk_agent
+    from reglens.errors import LLMEmptyResponseError
+    from reglens.schemas.gap import GapResult, GapStatus
+    from reglens.schemas.obligation import Obligation
+
+    gap = GapResult(
+        obligation=Obligation(id="O1", regulation_ref="R", clause="§1", text="T"),
+        matched_policies=[],
+        status=GapStatus.GAP,
+        reasoning="no coverage",
+    )
+
+    with (
+        patch.object(risk_agent, "_load_rubric", return_value="rubric text"),
+        patch.object(risk_agent, "generate", new=AsyncMock(return_value="")),
+        pytest.raises(LLMEmptyResponseError),
+    ):
+        await risk_agent.score_gap(gap)
+
+
+def test_errors_status_codes() -> None:
+    """Each error subclass exposes the correct HTTP status code."""
+    from reglens.errors import (
+        A2ATransportError,
+        IngestionError,
+        LLMEmptyResponseError,
+        LLMValidationError,
+        RunNotFoundError,
+        RunStateError,
+    )
+
+    assert IngestionError.status_code == 422
+    assert A2ATransportError.status_code == 502
+    assert LLMValidationError.status_code == 422
+    assert LLMEmptyResponseError.status_code == 422
+    assert RunNotFoundError.status_code == 404
+    assert RunStateError.status_code == 409
+
+
+def test_errors_default_message_used_when_none() -> None:
+    from reglens.errors import RunNotFoundError
+
+    exc = RunNotFoundError()
+    assert exc.message == RunNotFoundError.default_message
+    assert str(exc) == RunNotFoundError.default_message
+
+
+def test_errors_custom_message_used() -> None:
+    from reglens.errors import IngestionError
+
+    exc = IngestionError("custom msg")
+    assert exc.message == "custom msg"

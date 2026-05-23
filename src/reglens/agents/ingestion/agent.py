@@ -10,6 +10,7 @@ from typing import Any
 from google.genai import types as genai_types
 
 from reglens.agents.ingestion.prompts import SYSTEM_PROMPT
+from reglens.errors import IngestionError, LLMEmptyResponseError
 from reglens.llm.gemini import generate_multimodal
 from reglens.schemas.obligation import Obligation, ObligationType
 
@@ -79,13 +80,23 @@ async def extract_obligations(
         max_output_tokens=65536,
     )
 
+    if not raw:
+        raise LLMEmptyResponseError(
+            "Gemini returned an empty response during ingestion."
+        )
+
     cleaned = _strip_markdown_fences(raw)
     try:
         items: list[dict[str, Any]] = json.loads(cleaned)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
         logger.error("Gemini returned non-JSON ingestion output:\n%s", cleaned[:500])
-        raise
+        raise IngestionError(
+            f"Could not parse obligation JSON from LLM output: {exc}"
+        ) from exc
 
-    obligations = [Obligation.model_validate(item) for item in items]
+    try:
+        obligations = [Obligation.model_validate(item) for item in items]
+    except Exception as exc:
+        raise IngestionError(f"Obligation schema validation failed: {exc}") from exc
     logger.info("Extracted %d obligations from %s", len(obligations), regulation_ref)
     return obligations

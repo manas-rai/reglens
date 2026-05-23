@@ -10,6 +10,7 @@ from typing import Any
 import yaml
 
 from reglens.agents.risk_scorer.prompts import SYSTEM_PROMPT
+from reglens.errors import LLMEmptyResponseError, LLMValidationError
 from reglens.llm.gemini import generate
 from reglens.schemas.gap import GapResult, GapStatus
 from reglens.schemas.risk import RiskLevel, RiskScore
@@ -67,11 +68,18 @@ async def score_gap(gap_result: GapResult) -> RiskScore:
         response_schema=_RISK_SCHEMA,
     )
 
+    if not raw:
+        raise LLMEmptyResponseError(
+            "Gemini returned an empty response during risk scoring."
+        )
+
     try:
         data: dict[str, Any] = json.loads(raw)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
         logger.error("Risk scorer returned non-JSON: %s", raw[:200])
-        raise
+        raise LLMValidationError(
+            f"Risk scorer returned non-JSON output: {exc}"
+        ) from exc
 
     return RiskScore(
         gap_result=gap_result,
