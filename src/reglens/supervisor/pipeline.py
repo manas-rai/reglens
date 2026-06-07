@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 
@@ -17,6 +18,36 @@ from reglens.supervisor.graph import build_supervisor_graph
 from reglens.supervisor.state import SupervisorState
 
 logger = logging.getLogger(__name__)
+
+
+def _build_runnable_config(
+    run_id: str,
+    regulation_ref: str | None = None,
+    domain: str | None = None,
+    *,
+    operation: str,
+) -> RunnableConfig:
+    """Build a LangGraph RunnableConfig with LangSmith trace metadata.
+
+    ``operation`` labels the top-level trace ("run" vs "resume") so LangSmith
+    can distinguish initial executions from HITL resumes for the same thread.
+    """
+    # Read ENVIRONMENT directly rather than calling get_settings() so this
+    # helper stays usable in tests that don't construct a full Settings object.
+    environment = os.environ.get("ENVIRONMENT", "development")
+    metadata: dict[str, Any] = {"run_id": run_id, "operation": operation}
+    tags: list[str] = [environment, operation]
+    if regulation_ref is not None:
+        metadata["regulation_ref"] = regulation_ref
+    if domain is not None:
+        metadata["domain"] = domain
+        tags.append(domain)
+    return {
+        "configurable": {"thread_id": run_id},
+        "run_name": f"reglens.compliance_{operation}",
+        "tags": tags,
+        "metadata": metadata,
+    }
 
 
 async def update_run_status(
@@ -63,7 +94,9 @@ async def run_pipeline(
 
         async with get_checkpointer() as checkpointer:
             graph = build_supervisor_graph(checkpointer)
-            config: RunnableConfig = {"configurable": {"thread_id": run_id}}
+            config = _build_runnable_config(
+                run_id, regulation_ref, domain, operation="run"
+            )
 
             async for event in graph.astream(
                 initial_state, config=config, stream_mode="updates"
@@ -149,7 +182,7 @@ async def resume_pipeline(
 
         async with get_checkpointer() as checkpointer:
             graph = build_supervisor_graph(checkpointer)
-            config: RunnableConfig = {"configurable": {"thread_id": run_id}}
+            config = _build_runnable_config(run_id, operation="resume")
 
             resume_cmd: LangGraphCommand[Any] = LangGraphCommand(
                 resume={"approved": approved, "edits": edits}

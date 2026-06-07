@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,11 +16,9 @@ from reglens.api.middleware.request_id import RequestIDMiddleware
 from reglens.api.routers import health, runs
 from reglens.config import get_settings
 from reglens.errors import ReglensError
+from reglens.observability.langsmith import configure_langsmith
 from reglens.observability.logging import configure_logging
 from reglens.observability.tracing import configure_tracing
-
-if TYPE_CHECKING:
-    from reglens.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +32,7 @@ def create_app() -> FastAPI:
         service_name=settings.otel_service_name,
         otlp_endpoint=settings.otel_exporter_endpoint,
     )
-    _configure_langsmith(settings)
+    configure_langsmith(settings)
 
     app = FastAPI(
         title="RegLens API",
@@ -74,26 +71,6 @@ def create_app() -> FastAPI:
 
     logger.info("RegLens API started", extra={"environment": settings.environment})
     return app
-
-
-def _configure_langsmith(settings: Settings) -> None:
-    """Enable LangSmith tracing when the API key is present and tracing is enabled."""
-    if not settings.langsmith_tracing_enabled:
-        return
-    if settings.langsmith_api_key is None:
-        logger.warning(
-            "LANGSMITH_TRACING_ENABLED=true but LANGSMITH_API_KEY is not set"
-        )
-        return
-
-    import os
-
-    os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key.get_secret_value()
-    os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    logger.info(
-        "LangSmith tracing enabled", extra={"project": settings.langsmith_project}
-    )
 
 
 app = create_app()
