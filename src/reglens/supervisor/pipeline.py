@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 from sqlalchemy import text
 
+from evals.metrics.run_metrics import compute_run_metrics, write_run_metrics
 from reglens.api import sse
 from reglens.persistence.db import db_session
 from reglens.supervisor.checkpoint import get_checkpointer
@@ -45,6 +47,8 @@ async def run_pipeline(
     regulation_ref: str,
     domain: str,
 ) -> None:
+    started_at = time.monotonic()
+    node_sequence: list[str] = []
     try:
         await update_run_status(run_id, "running")
         await sse.push(run_id, {"node": "start", "status": "running"})
@@ -65,6 +69,7 @@ async def run_pipeline(
                 initial_state, config=config, stream_mode="updates"
             ):
                 node_name = next(iter(event)) if event else "unknown"
+                node_sequence.append(node_name)
                 logger.info(
                     "Node completed", extra={"run_id": run_id, "node": node_name}
                 )
@@ -73,6 +78,8 @@ async def run_pipeline(
             # Distinguish interrupted (HITL gate) from naturally completed (empty report).
             # state.next is non-empty when the graph is paused at an interrupt().
             final_state = await graph.aget_state(config)
+
+        await _emit_run_metrics(run_id, final_state, node_sequence, started_at)
 
         if final_state.next:
             await update_run_status(run_id, "awaiting_approval")
@@ -91,6 +98,38 @@ async def run_pipeline(
         logger.exception("Pipeline failed", extra={"run_id": run_id, "error": str(exc)})
         await update_run_status(run_id, "error", str(exc))
         await sse.push(run_id, {"node": "error", "status": "error", "detail": str(exc)})
+
+
+async def _emit_run_metrics(
+    run_id: str,
+    final_state: Any,
+    node_sequence: list[str],
+    started_at: float,
+) -> None:
+    """Best-effort post-run metrics. Never raises — metrics failures must not
+    surface as pipeline errors."""
+    try:
+        values = getattr(final_state, "values", None) or {}
+        obligations = values.get("obligations") or []
+        gap_results = values.get("gap_results") or []
+        risk_scores = values.get("risk_scores") or []
+
+        # A2A calls = 1 ingest + N risk scorings (one per gap that wasn't fast-pathed).
+        a2a_calls = 1 + len(risk_scores)
+
+        wall_ms = (time.monotonic() - started_at) * 1000.0
+        metrics = compute_run_metrics(
+            run_id=run_id,
+            node_sequence=node_sequence,
+            obligations_count=len(obligations),
+            gap_results=gap_results,
+            risk_scores=risk_scores,
+            a2a_call_count=a2a_calls,
+            pipeline_wall_ms=wall_ms,
+        )
+        await write_run_metrics(run_id, metrics)
+    except Exception:
+        logger.exception("run_metrics_emit_failed", extra={"run_id": run_id})
 
 
 async def resume_pipeline(

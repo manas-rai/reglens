@@ -65,6 +65,15 @@ dev = [
     "pre-commit>=3.8",
     "types-PyYAML",
 ]
+# Optional eval-only deps. Install via `uv sync --extra evals`.
+# Component evals and L1 guards work without these; opting in unlocks
+# Ragas (RAG context/faithfulness), DeepEval (G-Eval/hallucination),
+# and PII checks via Presidio.
+evals = [
+    "ragas>=0.2,<1",
+    "deepeval>=1.0,<3",
+    "presidio-analyzer>=2.2,<3",
+]
 
 [project.urls]
 Repository = "https://github.com/manasrai/reglens"
@@ -124,7 +133,7 @@ ignore = [
 "src/reglens/supervisor/server.py" = ["S104"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["reglens"]
+known-first-party = ["reglens", "evals"]
 
 [tool.ruff.format]
 docstring-code-format = true

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import logging
 
+from evals.guards.rag_guards import (
+    check_retrieval_coverage,
+    check_retrieval_relevance_floor,
+)
 from reglens.llm.gemini import embed_text
 from reglens.persistence.db import db_session
 from reglens.rag.store import search_policies
@@ -42,4 +46,7 @@ async def retrieve_matching_policies(
                 matched_obligation_id=obligation.id,
             )
         )
+
+    check_retrieval_coverage(obligation.id, matches).emit()
+    check_retrieval_relevance_floor(obligation.id, matches).emit()
     return matches

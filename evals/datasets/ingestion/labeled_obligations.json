@@ -1,0 +1,127 @@
+{
+  "description": "Ground-truth obligations for ingestion eval. Each entry represents what a perfect extractor should produce given a clause from an RBI Master Direction.",
+  "regulation_ref": "RBI-MD-KYC-2016",
+  "domain": "banking",
+  "items": [
+    {
+      "clause": "§3.1",
+      "raw_text": "Banks shall put in place a Customer Identification Procedure (CIP) to be carried out at different stages, including while establishing a banking relationship.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["kyc", "onboarding", "customer-identification"]
+    },
+    {
+      "clause": "§3.2(a)",
+      "raw_text": "For non-individual customers, banks shall identify the beneficial owner and take all reasonable steps to verify the identity of beneficial owners holding 25% or more.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["kyc", "beneficial-owner", "legal-entity"]
+    },
+    {
+      "clause": "§4.1",
+      "raw_text": "Customers shall be categorised as Low, Medium, or High risk based on perception of risk. The risk categorisation shall be reviewed at least once every six months for high risk customers.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["kyc", "risk-categorisation", "periodic-review"]
+    },
+    {
+      "clause": "§4.3",
+      "raw_text": "Enhanced Due Diligence shall be performed for Politically Exposed Persons (PEPs) including identification of source of funds and senior management approval.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["kyc", "pep", "edd"]
+    },
+    {
+      "clause": "§5.2",
+      "raw_text": "Suspicious Transaction Reports (STRs) shall be filed with FIU-IND within seven working days of arriving at a conclusion that the transaction is suspicious.",
+      "expected_obligation_type": "reporting",
+      "expected_tags_any_of": ["aml", "str", "fiu"]
+    },
+    {
+      "clause": "§5.4",
+      "raw_text": "All records of transactions shall be maintained for a period of ten years from the date of cessation of the transaction under PMLA.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["aml", "pmla", "record-retention"]
+    },
+    {
+      "clause": "§5.5",
+      "raw_text": "Banks shall monitor wire transfers for completeness of originator and beneficiary information and report missing information promptly.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["aml", "wire-transfer", "monitoring"]
+    },
+    {
+      "clause": "§6.1",
+      "raw_text": "Banks shall maintain a minimum Capital-to-Risk-Weighted Assets Ratio (CRAR) of 11.5% including the capital conservation buffer.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["capital", "crar", "basel-iii"]
+    },
+    {
+      "clause": "§6.2",
+      "raw_text": "Banks shall maintain a Leverage Ratio of not less than 4% computed as Tier 1 capital divided by total exposure measure.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["capital", "leverage-ratio", "basel-iii"]
+    },
+    {
+      "clause": "§6.4",
+      "raw_text": "Banks shall maintain a Net Stable Funding Ratio (NSFR) of at least 100% to ensure stable funding profile relative to assets.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["liquidity", "nsfr", "basel-iii"]
+    },
+    {
+      "clause": "§7.3",
+      "raw_text": "The Audit Committee of the Board shall comprise a majority of independent directors and shall oversee the Bank's internal audit function.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["governance", "audit-committee", "independent-director"]
+    },
+    {
+      "clause": "§7.5",
+      "raw_text": "Banks shall establish a Whistleblower / Vigil Mechanism to enable directors and employees to report concerns about unethical behavior or fraud.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["governance", "whistleblower", "vigil"]
+    },
+    {
+      "clause": "§8.1",
+      "raw_text": "All cyber security incidents shall be reported to the Reserve Bank of India within 6 hours of detection in the prescribed format.",
+      "expected_obligation_type": "reporting",
+      "expected_tags_any_of": ["cyber", "incident-reporting", "rbi"]
+    },
+    {
+      "clause": "§8.4",
+      "raw_text": "Banks shall submit Large Exposure Returns on a quarterly basis under the Large Exposures Framework.",
+      "expected_obligation_type": "reporting",
+      "expected_tags_any_of": ["reporting", "large-exposure", "rbi"]
+    },
+    {
+      "clause": "§9.2",
+      "raw_text": "Banks shall compensate customers for unauthorized electronic transactions within 10 working days subject to limited liability provisions.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["customer-protection", "unauthorized-transaction", "compensation"]
+    },
+    {
+      "clause": "§9.4",
+      "raw_text": "Banks shall disclose Marginal Cost of Funds based Lending Rate (MCLR) and External Benchmark Rate (EBR) to customers at the time of loan sanction.",
+      "expected_obligation_type": "disclosure",
+      "expected_tags_any_of": ["customer-protection", "mclr", "disclosure"]
+    },
+    {
+      "clause": "§10.1",
+      "raw_text": "Banks shall maintain a Board-approved Business Continuity Plan and conduct DR drills at least annually with documented test results.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["it", "bcp", "dr-testing"]
+    },
+    {
+      "clause": "§10.3",
+      "raw_text": "Banks shall conduct due diligence on third-party IT service providers and document a vendor risk management framework.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["it", "vendor-risk", "third-party"]
+    },
+    {
+      "clause": "§11.2",
+      "raw_text": "Investment portfolios held under AFS and HFT categories shall be valued at fair value at least quarterly with depreciation provided through P&L.",
+      "expected_obligation_type": "mandatory",
+      "expected_tags_any_of": ["market-risk", "investment-valuation", "fair-value"]
+    },
+    {
+      "clause": "§12.1",
+      "raw_text": "Banks shall not extend credit to related parties beyond limits prescribed under the Connected Lending framework without Board approval.",
+      "expected_obligation_type": "prohibited",
+      "expected_tags_any_of": ["credit-risk", "related-party", "connected-lending"]
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "description": "Ground-truth (obligation + matched policies -> GapStatus) for gap analyzer eval.",
+  "domain": "banking",
+  "items": [
+    {
+      "obligation_id": "RBI-KYC-§3.1",
+      "obligation_text": "Banks shall put in place a Customer Identification Procedure (CIP) covering name, address, and government-issued ID at account opening.",
+      "matched_policies": [
+        {"id": "CTL-KYC-001", "text": "The Bank maintains a Customer Identification Programme (CIP) requiring collection of customer name, address, date of birth, and a government-issued photo ID for all individual accounts prior to account opening."}
+      ],
+      "expected_status": "compliant"
+    },
+    {
+      "obligation_id": "RBI-KYC-§3.2",
+      "obligation_text": "Banks shall identify and verify beneficial owners holding 25% or more of voting rights in non-individual customers.",
+      "matched_policies": [
+        {"id": "CTL-KYC-002", "text": "For non-individual customers (companies, trusts, partnerships), the Bank identifies and verifies beneficial owners holding 25% or more of voting rights."}
+      ],
+      "expected_status": "compliant"
+    },
+    {
+      "obligation_id": "RBI-KYC-§4.1-high-risk",
+      "obligation_text": "Risk categorisation for HIGH-risk customers shall be reviewed at least once every six months.",
+      "matched_policies": [
+        {"id": "CTL-KYC-004", "text": "Risk category is reviewed annually for Medium risk and bi-annually for Low risk customers."}
+      ],
+      "expected_status": "partial_gap"
+    },
+    {
+      "obligation_id": "RBI-KYC-§4.3-pep",
+      "obligation_text": "Enhanced Due Diligence shall be performed for Politically Exposed Persons (PEPs).",
+      "matched_policies": [
+        {"id": "CTL-KYC-004", "text": "Customers are categorised as Low, Medium, or High risk at onboarding using a risk scoring model."}
+      ],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-AML-§5.2",
+      "obligation_text": "Suspicious Transaction Reports shall be filed with FIU-IND within 7 days of detection.",
+      "matched_policies": [
+        {"id": "CTL-AML-001", "text": "The Bank files Suspicious Transaction Reports (STRs) with FIU-IND within 7 days of detection."}
+      ],
+      "expected_status": "compliant"
+    },
+    {
+      "obligation_id": "RBI-AML-§5.4-pmla",
+      "obligation_text": "All transaction records shall be maintained for 10 years from cessation under PMLA.",
+      "matched_policies": [],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-AML-§5.5-wire",
+      "obligation_text": "Banks shall monitor wire transfers for originator and beneficiary information completeness.",
+      "matched_policies": [
+        {"id": "CTL-AML-001", "text": "The Bank files STRs with FIU-IND within 7 days of detection."}
+      ],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-CAR-§6.1",
+      "obligation_text": "Banks shall maintain CRAR of at least 11.5% including capital conservation buffer.",
+      "matched_policies": [
+        {"id": "CTL-CAR-001", "text": "The Bank maintains minimum CRAR of 11.5% (including capital conservation buffer) as prescribed by RBI."}
+      ],
+      "expected_status": "compliant"
+    },
+    {
+      "obligation_id": "RBI-CAR-§6.2-leverage",
+      "obligation_text": "Banks shall maintain a Leverage Ratio of not less than 4%.",
+      "matched_policies": [
+        {"id": "CTL-CAR-001", "text": "The Bank maintains minimum CRAR of 11.5%."}
+      ],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-CAR-§6.4-nsfr",
+      "obligation_text": "Banks shall maintain Net Stable Funding Ratio of at least 100%.",
+      "matched_policies": [
+        {"id": "CTL-CAR-003", "text": "The Bank maintains LCR of at least 100% per RBI Master Circular on Basel III."}
+      ],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-GOV-§7.1",
+      "obligation_text": "Board Risk Management Committee shall meet at least quarterly.",
+      "matched_policies": [
+        {"id": "CTL-GOV-001", "text": "The Board Risk Management Committee (BRMC) meets at least quarterly."}
+      ],
+      "expected_status": "compliant"
+    },
+    {
+      "obligation_id": "RBI-GOV-§7.5-whistleblower",
+      "obligation_text": "Banks shall establish a Whistleblower / Vigil Mechanism for employees to report concerns.",
+      "matched_policies": [],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-REP-§8.1-cyber",
+      "obligation_text": "Cyber security incidents shall be reported to RBI within 6 hours of detection.",
+      "matched_policies": [
+        {"id": "CTL-IT-001", "text": "The Bank maintains a Board-approved Information Security Policy aligned with RBI Master Direction on IT Framework."}
+      ],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-CUS-§9.1",
+      "obligation_text": "Banks shall resolve grievances within 30 days through a Board-approved mechanism.",
+      "matched_policies": [
+        {"id": "CTL-CUS-001", "text": "The Bank has a Board-approved Grievance Redressal Policy. Customer complaints are resolved within 30 days."}
+      ],
+      "expected_status": "compliant"
+    },
+    {
+      "obligation_id": "RBI-CUS-§9.2-unauthorized",
+      "obligation_text": "Banks shall compensate customers for unauthorized electronic transactions within 10 working days.",
+      "matched_policies": [
+        {"id": "CTL-CUS-001", "text": "The Bank has a Board-approved Grievance Redressal Policy resolving complaints within 30 days."}
+      ],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-IT-§10.3-vendor",
+      "obligation_text": "Banks shall conduct due diligence on third-party IT service providers.",
+      "matched_policies": [
+        {"id": "CTL-IT-001", "text": "The Bank maintains a Board-approved Information Security Policy reviewed annually."}
+      ],
+      "expected_status": "gap"
+    },
+    {
+      "obligation_id": "RBI-MKT-§11.1",
+      "obligation_text": "Banks shall manage interest rate risk in the banking book through duration and earnings-at-risk metrics.",
+      "matched_policies": [
+        {"id": "CTL-MKT-001", "text": "The Bank manages interest rate risk in the banking book through duration limits and earnings-at-risk (EaR) metrics monitored by ALCO monthly."}
+      ],
+      "expected_status": "compliant"
+    },
+    {
+      "obligation_id": "RBI-INSURANCE-§99",
+      "obligation_text": "Insurers shall maintain a solvency ratio of at least 150% under IRDAI norms.",
+      "matched_policies": [],
+      "expected_status": "not_applicable"
+    },
+    {
+      "obligation_id": "RBI-CRD-§12.1",
+      "obligation_text": "Banks shall have a Board-approved Loan Policy defining credit appraisal standards.",
+      "matched_policies": [
+        {"id": "CTL-CRD-001", "text": "The Bank's Loan Policy defines credit appraisal standards, concentration limits, and collateral requirements."}
+      ],
+      "expected_status": "compliant"
+    },
+    {
+      "obligation_id": "RBI-CRD-§12.3-related-party",
+      "obligation_text": "Banks shall not extend credit to related parties beyond Connected Lending framework limits.",
+      "matched_policies": [
+        {"id": "CTL-CRD-001", "text": "The Bank's Loan Policy defines concentration limits (sector, geography, borrower group)."}
+      ],
+      "expected_status": "gap"
+    }
+  ]
+}

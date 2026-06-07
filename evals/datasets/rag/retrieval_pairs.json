@@ -1,0 +1,102 @@
+{
+  "description": "Ground-truth (obligation -> policy_ids) pairs for RAG eval. 'expected' = must be in top-K; 'acceptable' = related but lower-priority matches.",
+  "domain": "banking",
+  "items": [
+    {
+      "obligation_id": "RBI-KYC-§3.1",
+      "obligation_text": "Banks shall put in place a Customer Identification Procedure (CIP) covering name, address, and government-issued ID at account opening.",
+      "expected_policy_ids": ["CTL-KYC-001"],
+      "acceptable_policy_ids": ["CTL-KYC-002", "CTL-KYC-004"]
+    },
+    {
+      "obligation_id": "RBI-KYC-§3.2",
+      "obligation_text": "Banks shall identify and verify beneficial owners holding 25% or more of voting rights in non-individual customers.",
+      "expected_policy_ids": ["CTL-KYC-002"],
+      "acceptable_policy_ids": ["CTL-KYC-001"]
+    },
+    {
+      "obligation_id": "RBI-KYC-§4.1",
+      "obligation_text": "Customers shall be categorised as Low, Medium, or High risk and reviewed periodically based on risk category.",
+      "expected_policy_ids": ["CTL-KYC-004"],
+      "acceptable_policy_ids": ["CTL-KYC-001"]
+    },
+    {
+      "obligation_id": "RBI-AML-§5.2",
+      "obligation_text": "Suspicious Transaction Reports shall be filed with FIU-IND within 7 days of detection.",
+      "expected_policy_ids": ["CTL-AML-001"],
+      "acceptable_policy_ids": []
+    },
+    {
+      "obligation_id": "RBI-AML-§5.3",
+      "obligation_text": "Cash transactions above INR 10 lakh shall be reported via CTR to FIU-IND monthly.",
+      "expected_policy_ids": ["CTL-AML-002"],
+      "acceptable_policy_ids": ["CTL-AML-001"]
+    },
+    {
+      "obligation_id": "RBI-CAR-§6.1",
+      "obligation_text": "Banks shall maintain CRAR of at least 11.5% including capital conservation buffer.",
+      "expected_policy_ids": ["CTL-CAR-001"],
+      "acceptable_policy_ids": ["CTL-REP-001"]
+    },
+    {
+      "obligation_id": "RBI-CAR-§6.3",
+      "obligation_text": "Liquidity Coverage Ratio shall be maintained at 100% or above and reported monthly.",
+      "expected_policy_ids": ["CTL-CAR-003"],
+      "acceptable_policy_ids": ["CTL-CAR-001"]
+    },
+    {
+      "obligation_id": "RBI-GOV-§7.1",
+      "obligation_text": "Board Risk Management Committee shall meet at least quarterly to review risk reports.",
+      "expected_policy_ids": ["CTL-GOV-001"],
+      "acceptable_policy_ids": []
+    },
+    {
+      "obligation_id": "RBI-GOV-§7.2",
+      "obligation_text": "Independent directors shall constitute at least one-third of the Board.",
+      "expected_policy_ids": ["CTL-GOV-002"],
+      "acceptable_policy_ids": ["CTL-GOV-001"]
+    },
+    {
+      "obligation_id": "RBI-REP-§8.2",
+      "obligation_text": "Basel III capital adequacy returns shall be submitted to RBI quarterly via XBRL.",
+      "expected_policy_ids": ["CTL-REP-001"],
+      "acceptable_policy_ids": ["CTL-CAR-001"]
+    },
+    {
+      "obligation_id": "RBI-REP-§8.3",
+      "obligation_text": "All fraud cases shall be reported to RBI within 3 weeks of detection.",
+      "expected_policy_ids": ["CTL-REP-002"],
+      "acceptable_policy_ids": []
+    },
+    {
+      "obligation_id": "RBI-CUS-§9.1",
+      "obligation_text": "Banks shall maintain a Board-approved grievance redressal mechanism resolving complaints within 30 days.",
+      "expected_policy_ids": ["CTL-CUS-001"],
+      "acceptable_policy_ids": []
+    },
+    {
+      "obligation_id": "RBI-IT-§10.1",
+      "obligation_text": "Banks shall maintain a Board-approved Information Security Policy reviewed annually.",
+      "expected_policy_ids": ["CTL-IT-001"],
+      "acceptable_policy_ids": []
+    },
+    {
+      "obligation_id": "RBI-MKT-§11.1",
+      "obligation_text": "Banks shall manage interest rate risk in the banking book using duration and earnings-at-risk metrics monitored by ALCO.",
+      "expected_policy_ids": ["CTL-MKT-001"],
+      "acceptable_policy_ids": []
+    },
+    {
+      "obligation_id": "RBI-CRD-§12.1",
+      "obligation_text": "Banks shall have a Board-approved Loan Policy defining credit appraisal standards and concentration limits.",
+      "expected_policy_ids": ["CTL-CRD-001"],
+      "acceptable_policy_ids": ["CTL-CRD-002"]
+    },
+    {
+      "obligation_id": "RBI-CRD-§12.2",
+      "obligation_text": "Banks shall classify NPAs and make provisions per RBI IRACP norms with quarterly Board reporting.",
+      "expected_policy_ids": ["CTL-CRD-002"],
+      "acceptable_policy_ids": ["CTL-CRD-001"]
+    }
+  ]
+}

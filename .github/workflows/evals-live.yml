@@ -1,0 +1,57 @@
+name: Evals (live LLM)
+
+# Runs the full LIVE_LLM suite in three situations:
+#  1. Nightly at 02:00 UTC — quality dashboard, drift detection.
+#  2. Manual dispatch — ad-hoc runs from the Actions tab.
+#  3. PR labeled 'run-live-evals' — opt-in gate for prompt/model changes
+#     where a maintainer wants real signal before merging. Not run on
+#     every PR to avoid cost (~$3/run), latency (3–8 min), and flakiness
+#     from stochastic LLM sampling.
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  live-evals:
+    # Run on schedule/manual unconditionally; on PR only when the
+    # `run-live-evals` label is applied.
+    if: >
+      github.event_name != 'pull_request' ||
+      github.event.label.name == 'run-live-evals'
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: src
+      LIVE_LLM: "1"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install dependencies (incl. evals extra)
+        run: uv sync --extra dev --extra evals
+
+      - name: Component evals (live)
+        run: |
+          uv run python -m evals.component.gap_eval
+          uv run python -m evals.component.risk_eval
+
+      - name: Behavioral evals (live)
+        run: |
+          uv run python -m evals.behavioral.competency
+          uv run python -m evals.behavioral.invariance
+          uv run python -m evals.behavioral.monotonicity
+          uv run python -m evals.behavioral.counterfactual

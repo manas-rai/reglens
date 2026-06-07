@@ -10,6 +10,7 @@ import reglens.supervisor.nodes as nodes_module
 from reglens.schemas.gap import GapResult, GapStatus
 from reglens.schemas.obligation import Obligation
 from reglens.schemas.risk import RiskLevel, RiskScore
+from reglens.supervisor.routing import route_after_ingest
 
 if TYPE_CHECKING:
     from reglens.supervisor.state import SupervisorState
@@ -75,19 +76,19 @@ def _mock_settings() -> MagicMock:
 
 def test_route_after_ingest_with_obligations() -> None:
     state = _make_state(obligations=[_make_obligation("OBL-001")])
-    assert nodes_module.route_after_ingest(state) == "retrieve_policies"
+    assert route_after_ingest(state) == "retrieve_policies"
 
 
 def test_route_after_ingest_empty_list() -> None:
     state = _make_state(obligations=[])
-    assert nodes_module.route_after_ingest(state) == "empty_report"
+    assert route_after_ingest(state) == "empty_report"
 
 
 def test_route_after_ingest_missing_key() -> None:
     # obligations key not yet in state (before node_ingest has run — should not happen
     # in practice, but the router must not crash)
     state = _make_state()
-    assert nodes_module.route_after_ingest(state) == "empty_report"
+    assert route_after_ingest(state) == "empty_report"
 
 
 # ---------------------------------------------------------------------------

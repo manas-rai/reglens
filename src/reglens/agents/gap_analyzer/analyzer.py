@@ -6,6 +6,10 @@ import logging
 
 from pydantic import BaseModel, Field
 
+from evals.guards.llm_guards import (
+    check_compliant_no_gap_description,
+    check_gap_reasoning_grounding,
+)
 from reglens.agents.gap_analyzer.prompts import SYSTEM_PROMPT
 from reglens.llm.claude import structured_complete
 from reglens.schemas.gap import GapResult, GapStatus
@@ -62,7 +66,7 @@ async def analyze_gap(
 
     logger.debug("Gap analysis for %s: %s", obligation.id, analysis.status)
 
-    return GapResult(
+    result = GapResult(
         obligation=obligation,
         matched_policies=matches,
         status=analysis.status,
@@ -70,3 +74,9 @@ async def analyze_gap(
         gap_description=analysis.gap_description,
         recommendation=analysis.recommendation,
     )
+
+    # L1 guards — soft-fail; never block.
+    check_gap_reasoning_grounding(result).emit()
+    check_compliant_no_gap_description(result).emit()
+
+    return result

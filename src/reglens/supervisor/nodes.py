@@ -40,11 +40,6 @@ async def _write_audit(run_id: str, node: str, payload: dict[str, Any]) -> None:
         )
 
 
-def route_after_ingest(state: SupervisorState) -> str:
-    """Route to retrieve_policies if obligations were found, else short-circuit to empty_report."""
-    return "retrieve_policies" if state.get("obligations") else "empty_report"
-
-
 async def node_empty_report(state: SupervisorState) -> dict[str, Any]:
     """Produce an empty compliance report when ingestion found no obligations."""
     run_id = state["run_id"]

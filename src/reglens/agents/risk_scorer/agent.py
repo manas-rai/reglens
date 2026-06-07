@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from evals.guards.llm_guards import check_risk_score_consistency
 from reglens.agents.risk_scorer.prompts import SYSTEM_PROMPT
 from reglens.errors import LLMEmptyResponseError, LLMValidationError
 from reglens.llm.gemini import generate
@@ -81,7 +82,7 @@ async def score_gap(gap_result: GapResult) -> RiskScore:
             f"Risk scorer returned non-JSON output: {exc}"
         ) from exc
 
-    return RiskScore(
+    risk = RiskScore(
         gap_result=gap_result,
         risk_level=RiskLevel(data["risk_level"]),
         score=float(data["score"]),
@@ -89,3 +90,5 @@ async def score_gap(gap_result: GapResult) -> RiskScore:
         regulatory_penalty_risk=data.get("regulatory_penalty_risk"),
         reputational_risk=data.get("reputational_risk"),
     )
+    check_risk_score_consistency(risk).emit()
+    return risk
