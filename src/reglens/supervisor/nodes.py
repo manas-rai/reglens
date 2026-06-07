@@ -25,7 +25,13 @@ logger = logging.getLogger(__name__)
 _RISK_CONCURRENCY = 5
 
 
-async def _write_audit(run_id: str, node: str, payload: dict[str, Any]) -> None:
+async def _write_audit(
+    run_id: str,
+    node: str,
+    payload: dict[str, Any],
+    *,
+    actor: str = "system",
+) -> None:
     import json
 
     from sqlalchemy import text
@@ -33,10 +39,16 @@ async def _write_audit(run_id: str, node: str, payload: dict[str, Any]) -> None:
     async with db_session() as session:
         await session.execute(
             text(
-                "INSERT INTO audit_log (run_id, node, payload)"
-                " VALUES (CAST(:run_id AS uuid), :node, CAST(:payload AS jsonb))"
+                "INSERT INTO audit_log (run_id, node, actor, payload)"
+                " VALUES (CAST(:run_id AS uuid), :node, :actor,"
+                " CAST(:payload AS jsonb))"
             ),
-            {"run_id": run_id, "node": node, "payload": json.dumps(payload)},
+            {
+                "run_id": run_id,
+                "node": node,
+                "actor": actor,
+                "payload": json.dumps(payload),
+            },
         )
 
 
@@ -162,20 +174,36 @@ async def node_generate_report(state: SupervisorState) -> dict[str, Any]:
     edits: list[dict[str, Any]] = human_input.get("edits", [])
 
     if not approved:
+        await _write_audit(
+            run_id,
+            "rejected",
+            {"reason": "Run rejected by human reviewer"},
+            actor="human",
+        )
         return {"error": "Run rejected by human reviewer", "draft_report": draft}
 
+    edit_diffs = _compute_edit_diffs(draft, edits)
     final = _apply_edits(draft, edits)
-    await _write_audit(run_id, "approved", {"edit_count": len(edits)})
+    await _write_audit(
+        run_id,
+        "approved",
+        {"edit_count": len(edits), "edits": edit_diffs},
+        actor="human",
+    )
 
     async with db_session() as session:
         from sqlalchemy import text
 
         await session.execute(
             text(
-                "UPDATE runs SET status = 'completed', updated_at = now() WHERE id = CAST(:id AS uuid)"
+                "UPDATE runs SET status = 'completed', updated_at = now()"
+                " WHERE id = CAST(:id AS uuid)"
             ),
             {"id": run_id},
         )
+    await _write_audit(
+        run_id, "status_transition", {"status": "completed"}, actor="system"
+    )
 
     return {
         "draft_report": draft,
@@ -183,6 +211,26 @@ async def node_generate_report(state: SupervisorState) -> dict[str, Any]:
         "approved": True,
         "edits": edits,
     }
+
+
+def _compute_edit_diffs(
+    report: Any,
+    edits: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    """Build a per-gap before/after status diff for the audit log."""
+    by_id = {
+        rs.gap_result.obligation.id: rs.gap_result.status for rs in report.risk_scores
+    }
+    diffs: list[dict[str, str]] = []
+    for edit in edits:
+        gap_id = edit.get("gap_id")
+        new_status = edit.get("status")
+        if not gap_id or not new_status or gap_id not in by_id:
+            continue
+        diffs.append(
+            {"gap_id": gap_id, "from": by_id[gap_id].value, "to": str(new_status)}
+        )
+    return diffs
 
 
 def _apply_edits(

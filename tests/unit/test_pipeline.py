@@ -78,21 +78,32 @@ async def test_update_run_status_no_error() -> None:
     ctx, session = _mock_db_session()
     with patch("reglens.supervisor.pipeline.db_session", ctx):
         await update_run_status("run-123", "running")
-    session.execute.assert_called_once()
-    call_args = session.execute.call_args
-    params = call_args[0][1]
-    assert params["status"] == "running"
-    assert params["id"] == "run-123"
-    assert "error" not in params
+    # First call updates runs, second inserts status_transition audit row.
+    assert session.execute.call_count == 2
+    update_params = session.execute.call_args_list[0][0][1]
+    assert update_params["status"] == "running"
+    assert update_params["id"] == "run-123"
+    assert "error" not in update_params
+
+    audit_params = session.execute.call_args_list[1][0][1]
+    assert audit_params["run_id"] == "run-123"
+    import json as _json
+
+    assert _json.loads(audit_params["payload"]) == {"status": "running"}
 
 
 async def test_update_run_status_with_error() -> None:
     ctx, session = _mock_db_session()
     with patch("reglens.supervisor.pipeline.db_session", ctx):
         await update_run_status("run-456", "error", "Something exploded")
-    params = session.execute.call_args[0][1]
-    assert params["status"] == "error"
-    assert params["error"] == "Something exploded"
+    update_params = session.execute.call_args_list[0][0][1]
+    assert update_params["status"] == "error"
+    assert update_params["error"] == "Something exploded"
+
+    import json as _json
+
+    audit_payload = _json.loads(session.execute.call_args_list[1][0][1]["payload"])
+    assert audit_payload == {"status": "error", "error": "Something exploded"}
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +161,9 @@ async def test_run_pipeline_updates_status_to_awaiting_approval() -> None:
     ):
         await run_pipeline("run-003", b"pdf", "REG", "banking")
 
-    statuses = [c[0][1]["status"] for c in session.execute.call_args_list]
+    statuses = [
+        c[0][1]["status"] for c in session.execute.call_args_list if "status" in c[0][1]
+    ]
     assert "running" in statuses
     assert "awaiting_approval" in statuses
 
@@ -199,7 +212,9 @@ async def test_run_pipeline_empty_obligations_completes_without_hitl() -> None:
     ):
         await run_pipeline("run-empty", b"pdf", "REG", "banking")
 
-    statuses = [c[0][1]["status"] for c in session.execute.call_args_list]
+    statuses = [
+        c[0][1]["status"] for c in session.execute.call_args_list if "status" in c[0][1]
+    ]
     assert "completed" in statuses
     assert "awaiting_approval" not in statuses
 
@@ -238,7 +253,7 @@ async def test_resume_pipeline_approved() -> None:
 
 
 async def test_resume_pipeline_rejected() -> None:
-    ctx, _ = _mock_db_session()
+    ctx, session = _mock_db_session()
     cp_ctx, _ = _mock_checkpointer_ctx()
 
     mock_graph = AsyncMock()
@@ -260,6 +275,12 @@ async def test_resume_pipeline_rejected() -> None:
         c for c in push_mock.call_args_list if c[0][1].get("status") == "rejected"
     ]
     assert len(terminal_calls) == 1
+
+    # rejection must also persist 'rejected' in the runs table
+    statuses = [
+        c[0][1]["status"] for c in session.execute.call_args_list if "status" in c[0][1]
+    ]
+    assert "rejected" in statuses
 
 
 async def test_resume_pipeline_handles_exception() -> None:
