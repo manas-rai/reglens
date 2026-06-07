@@ -5,7 +5,38 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from reglens.supervisor.pipeline import resume_pipeline, run_pipeline, update_run_status
+from reglens.supervisor.pipeline import (
+    _build_runnable_config,
+    resume_pipeline,
+    run_pipeline,
+    update_run_status,
+)
+
+
+def test_build_runnable_config_run_includes_metadata_and_tags() -> None:
+    cfg = _build_runnable_config(
+        "run-1", regulation_ref="RBI-MD-KYC-2016", domain="banking", operation="run"
+    )
+    assert cfg["configurable"] == {"thread_id": "run-1"}
+    assert cfg["run_name"] == "reglens.compliance_run"
+    assert cfg["metadata"] == {
+        "run_id": "run-1",
+        "operation": "run",
+        "regulation_ref": "RBI-MD-KYC-2016",
+        "domain": "banking",
+    }
+    # tags include environment, operation, and domain
+    assert "run" in cfg["tags"]
+    assert "banking" in cfg["tags"]
+
+
+def test_build_runnable_config_resume_omits_optional_fields() -> None:
+    cfg = _build_runnable_config("run-2", operation="resume")
+    assert cfg["run_name"] == "reglens.compliance_resume"
+    assert cfg["metadata"]["run_id"] == "run-2"
+    assert "regulation_ref" not in cfg["metadata"]
+    assert "domain" not in cfg["metadata"]
+    assert "resume" in cfg["tags"]
 
 
 def _mock_db_session():
