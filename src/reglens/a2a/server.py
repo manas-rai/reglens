@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from reglens.a2a.card import AgentCard
+from reglens.a2a.idempotency import IdempotencyStore
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class JsonRpcRequest(BaseModel):
     id: str | int | None = None
     method: str
     params: dict[str, Any] = {}
+    idempotency_key: str | None = None
 
 
 class JsonRpcResponse(BaseModel):
@@ -45,10 +47,21 @@ class JsonRpcResponse(BaseModel):
 Handler = Callable[[dict[str, Any]], Awaitable[Any]]
 
 
-def make_a2a_app(card: AgentCard, handlers: Mapping[str, Handler]) -> FastAPI:
-    """Create a FastAPI app that speaks A2A JSON-RPC 2.0."""
+def make_a2a_app(
+    card: AgentCard,
+    handlers: Mapping[str, Handler],
+    idempotency_store: IdempotencyStore | None = None,
+) -> FastAPI:
+    """Create a FastAPI app that speaks A2A JSON-RPC 2.0.
+
+    When ``idempotency_store`` is provided, requests carrying an
+    ``idempotency_key`` field have their results cached by ``(method, key)``
+    — subsequent duplicate calls within the TTL return the cached result
+    without re-invoking the handler.
+    """
 
     app = FastAPI(title=card.name, version=card.version)
+    store = idempotency_store or IdempotencyStore()
 
     @app.get("/.well-known/agent-card.json")
     async def agent_card() -> dict[str, Any]:
@@ -77,7 +90,25 @@ def make_a2a_app(card: AgentCard, handlers: Mapping[str, Handler]) -> FastAPI:
             )
 
         try:
+            if req.idempotency_key:
+                hit, cached = await store.get(req.method, req.idempotency_key)
+                if hit:
+                    logger.info(
+                        "idempotency_hit method=%s key=%s",
+                        req.method,
+                        req.idempotency_key,
+                    )
+                    return JSONResponse(
+                        JsonRpcResponse(id=req_id, result=cached).model_dump(
+                            mode="json"
+                        )
+                    )
+
             result = await handler(req.params)
+
+            if req.idempotency_key:
+                await store.set(req.method, req.idempotency_key, result)
+
             return JSONResponse(
                 JsonRpcResponse(id=req_id, result=result).model_dump(mode="json")
             )
