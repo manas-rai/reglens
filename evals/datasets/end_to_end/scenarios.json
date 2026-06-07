@@ -1,0 +1,186 @@
+{
+  "description": "End-to-end pipeline scenarios — each item bundles obligations, matched policies, expected gap classification, and expected risk severity. Used by evals.end_to_end.scenarios for aggregate gap precision/recall/F1 and severity accuracy.",
+  "domain": "banking",
+  "scenarios": [
+    {
+      "id": "kyc-cip-compliant",
+      "title": "KYC: Customer Identification Programme fully compliant",
+      "obligations": [
+        {
+          "id": "RBI-KYC-§3.1",
+          "obligation_text": "Banks shall put in place a Customer Identification Procedure (CIP) covering name, address, and government-issued ID at account opening.",
+          "matched_policies": [
+            {"id": "CTL-KYC-001", "text": "The Bank maintains a Customer Identification Programme (CIP) requiring collection of customer name, address, date of birth, and a government-issued photo ID for all individual accounts prior to account opening."}
+          ],
+          "expected_status": "compliant",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "none",
+          "expected_score_range": [0.0, 1.0]
+        }
+      ]
+    },
+    {
+      "id": "kyc-pep-edd-missing",
+      "title": "KYC: Enhanced due diligence for PEPs is missing",
+      "obligations": [
+        {
+          "id": "RBI-KYC-§4.3-pep",
+          "obligation_text": "Enhanced Due Diligence shall be performed for Politically Exposed Persons (PEPs).",
+          "matched_policies": [
+            {"id": "CTL-KYC-004", "text": "Customers are categorised as Low, Medium, or High risk at onboarding using a risk scoring model."}
+          ],
+          "expected_status": "gap",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "high",
+          "expected_score_range": [6.0, 9.0]
+        }
+      ]
+    },
+    {
+      "id": "aml-pmla-retention-missing",
+      "title": "AML: PMLA 10-year record retention missing — critical",
+      "obligations": [
+        {
+          "id": "RBI-AML-§5.4-pmla",
+          "obligation_text": "All transaction records shall be maintained for 10 years from cessation under PMLA.",
+          "matched_policies": [],
+          "expected_status": "gap",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "critical",
+          "expected_score_range": [8.0, 10.0]
+        }
+      ]
+    },
+    {
+      "id": "aml-wire-monitoring-missing",
+      "title": "AML: Wire transfer monitoring missing despite STR policy",
+      "obligations": [
+        {
+          "id": "RBI-AML-§5.5-wire",
+          "obligation_text": "Banks shall monitor wire transfers for originator and beneficiary information completeness.",
+          "matched_policies": [
+            {"id": "CTL-AML-001", "text": "The Bank files STRs with FIU-IND within 7 days of detection."}
+          ],
+          "expected_status": "gap",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "high",
+          "expected_score_range": [6.0, 9.0]
+        }
+      ]
+    },
+    {
+      "id": "cyber-incident-6h-reporting-missing",
+      "title": "Cyber: 6-hour RBI incident reporting missing — critical",
+      "obligations": [
+        {
+          "id": "RBI-CYBER-§2.1",
+          "obligation_text": "Cyber security incidents shall be reported to RBI within 6 hours of detection.",
+          "matched_policies": [],
+          "expected_status": "gap",
+          "obligation_type": "reporting",
+          "expected_risk_level": "critical",
+          "expected_score_range": [8.0, 10.0]
+        }
+      ]
+    },
+    {
+      "id": "consumer-unauthorized-compensation-missing",
+      "title": "Consumer protection: unauthorized-txn compensation missing",
+      "obligations": [
+        {
+          "id": "RBI-CONS-§7.2",
+          "obligation_text": "Banks shall compensate customers for unauthorized electronic transactions within 10 working days.",
+          "matched_policies": [],
+          "expected_status": "gap",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "high",
+          "expected_score_range": [6.0, 9.0]
+        }
+      ]
+    },
+    {
+      "id": "kyc-high-risk-review-partial",
+      "title": "KYC: high-risk review cadence partially aligned",
+      "obligations": [
+        {
+          "id": "RBI-KYC-§4.1-high-risk",
+          "obligation_text": "Risk categorisation for HIGH-risk customers shall be reviewed at least once every six months.",
+          "matched_policies": [
+            {"id": "CTL-KYC-004", "text": "Risk category is reviewed annually for Medium risk and bi-annually for Low risk customers."}
+          ],
+          "expected_status": "partial_gap",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "medium",
+          "expected_score_range": [3.0, 6.0]
+        }
+      ]
+    },
+    {
+      "id": "out-of-domain-insurance-not-applicable",
+      "title": "Out-of-domain insurance clause — NOT APPLICABLE",
+      "obligations": [
+        {
+          "id": "IRDAI-§9.1",
+          "obligation_text": "Insurer solvency ratio shall be maintained as prescribed by IRDAI.",
+          "matched_policies": [],
+          "expected_status": "not_applicable",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "none",
+          "expected_score_range": [0.0, 1.0]
+        }
+      ]
+    },
+    {
+      "id": "mixed-bag-portfolio",
+      "title": "Mixed portfolio — compliant + partial + gap",
+      "obligations": [
+        {
+          "id": "RBI-AML-§5.2",
+          "obligation_text": "Suspicious Transaction Reports shall be filed with FIU-IND within 7 days of detection.",
+          "matched_policies": [
+            {"id": "CTL-AML-001", "text": "The Bank files Suspicious Transaction Reports (STRs) with FIU-IND within 7 days of detection."}
+          ],
+          "expected_status": "compliant",
+          "obligation_type": "reporting",
+          "expected_risk_level": "none",
+          "expected_score_range": [0.0, 1.0]
+        },
+        {
+          "id": "RBI-KYC-§4.1-high-risk-mixed",
+          "obligation_text": "Risk categorisation for HIGH-risk customers shall be reviewed at least once every six months.",
+          "matched_policies": [
+            {"id": "CTL-KYC-004", "text": "Risk category is reviewed annually for Medium risk and bi-annually for Low risk customers."}
+          ],
+          "expected_status": "partial_gap",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "medium",
+          "expected_score_range": [3.0, 6.0]
+        },
+        {
+          "id": "RBI-AML-§5.4-pmla-mixed",
+          "obligation_text": "All transaction records shall be maintained for 10 years from cessation under PMLA.",
+          "matched_policies": [],
+          "expected_status": "gap",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "critical",
+          "expected_score_range": [8.0, 10.0]
+        }
+      ]
+    },
+    {
+      "id": "whistleblower-mechanism-missing",
+      "title": "Governance: whistleblower mechanism missing",
+      "obligations": [
+        {
+          "id": "RBI-GOV-§8.4",
+          "obligation_text": "Banks shall establish a Whistleblower / Vigil Mechanism.",
+          "matched_policies": [],
+          "expected_status": "gap",
+          "obligation_type": "mandatory",
+          "expected_risk_level": "high",
+          "expected_score_range": [6.0, 9.0]
+        }
+      ]
+    }
+  ]
+}

@@ -74,6 +74,11 @@ jobs:
           uv run python -m evals.behavioral.monotonicity
           uv run python -m evals.behavioral.counterfactual
 
+      # End-to-end pipeline scenarios — aggregate gap + severity metrics.
+      - name: End-to-end scenarios (offline)
+        run: |
+          uv run python -m evals.end_to_end.scenarios
+
   docker-build:
     runs-on: ubuntu-latest
     needs: lint-and-test

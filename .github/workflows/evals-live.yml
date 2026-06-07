@@ -55,3 +55,7 @@ jobs:
           uv run python -m evals.behavioral.invariance
           uv run python -m evals.behavioral.monotonicity
           uv run python -m evals.behavioral.counterfactual
+
+      - name: End-to-end scenarios (live)
+        run: |
+          uv run python -m evals.end_to_end.scenarios
