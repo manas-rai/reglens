@@ -368,3 +368,155 @@ async def test_client_records_attempt_count_after_retries() -> None:
 
     assert captured["a2a.attempt_count"] == 3
     await client.aclose()
+
+
+# ---------------------------------------------------------------------------
+# Idempotency
+
+
+async def test_idempotency_store_miss_then_hit() -> None:
+    from reglens.a2a.idempotency import IdempotencyStore
+
+    store = IdempotencyStore()
+    hit, value = await store.get("m", "k")
+    assert hit is False
+    assert value is None
+
+    await store.set("m", "k", {"result": 42})
+    hit, value = await store.get("m", "k")
+    assert hit is True
+    assert value == {"result": 42}
+
+
+async def test_idempotency_store_distinct_keys_isolated() -> None:
+    from reglens.a2a.idempotency import IdempotencyStore
+
+    store = IdempotencyStore()
+    await store.set("m", "a", 1)
+    await store.set("m", "b", 2)
+    await store.set("other", "a", 3)
+
+    assert (await store.get("m", "a"))[1] == 1
+    assert (await store.get("m", "b"))[1] == 2
+    assert (await store.get("other", "a"))[1] == 3
+
+
+async def test_idempotency_store_ttl_expiry() -> None:
+    from reglens.a2a.idempotency import IdempotencyStore
+
+    store = IdempotencyStore(ttl_seconds=0.01)
+    await store.set("m", "k", "v")
+    import asyncio as _asyncio
+
+    await _asyncio.sleep(0.05)
+    hit, _ = await store.get("m", "k")
+    assert hit is False
+
+
+async def test_server_idempotent_call_uses_cache() -> None:
+    """Same idempotency_key on a second call returns cached result without re-invoking handler."""
+    card = AgentCard(name="T", description="t", url="http://t")
+    call_count = {"n": 0}
+
+    async def slow(params: dict[str, Any]) -> dict[str, int]:
+        call_count["n"] += 1
+        return {"n": call_count["n"]}
+
+    app = make_a2a_app(card, {"slow": slow})
+    transport = httpx.ASGITransport(app=app)  # type: ignore[arg-type]
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+        body = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "method": "slow",
+            "params": {},
+            "idempotency_key": "abc",
+        }
+        r1 = await client.post("/jsonrpc", json=body)
+        r2 = await client.post("/jsonrpc", json={**body, "id": "2"})
+
+    assert r1.json()["result"] == {"n": 1}
+    assert r2.json()["result"] == {"n": 1}
+    assert call_count["n"] == 1
+
+
+async def test_server_distinct_keys_invoke_handler_each_time() -> None:
+    card = AgentCard(name="T", description="t", url="http://t")
+    call_count = {"n": 0}
+
+    async def h(params: dict[str, Any]) -> int:
+        call_count["n"] += 1
+        return call_count["n"]
+
+    app = make_a2a_app(card, {"h": h})
+    transport = httpx.ASGITransport(app=app)  # type: ignore[arg-type]
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+        await client.post(
+            "/jsonrpc",
+            json={
+                "jsonrpc": "2.0",
+                "id": "1",
+                "method": "h",
+                "params": {},
+                "idempotency_key": "k1",
+            },
+        )
+        await client.post(
+            "/jsonrpc",
+            json={
+                "jsonrpc": "2.0",
+                "id": "2",
+                "method": "h",
+                "params": {},
+                "idempotency_key": "k2",
+            },
+        )
+    assert call_count["n"] == 2
+
+
+async def test_server_no_idempotency_key_bypasses_cache() -> None:
+    card = AgentCard(name="T", description="t", url="http://t")
+    call_count = {"n": 0}
+
+    async def h(params: dict[str, Any]) -> int:
+        call_count["n"] += 1
+        return call_count["n"]
+
+    app = make_a2a_app(card, {"h": h})
+    transport = httpx.ASGITransport(app=app)  # type: ignore[arg-type]
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+        body = {"jsonrpc": "2.0", "id": "1", "method": "h", "params": {}}
+        await client.post("/jsonrpc", json=body)
+        await client.post("/jsonrpc", json={**body, "id": "2"})
+    assert call_count["n"] == 2
+
+
+async def test_client_forwards_idempotency_key_in_payload() -> None:
+    from reglens.a2a import client as client_module
+
+    client = A2AClient("http://agent:8001")
+    captured_payload: dict[str, Any] = {}
+
+    async def fake_post(url: str, json: dict[str, Any]) -> MagicMock:
+        captured_payload.update(json)
+        return _make_httpx_response(
+            {"jsonrpc": "2.0", "id": "1", "result": "ok", "error": None}
+        )
+
+    client._client.post = fake_post  # type: ignore[method-assign]
+
+    captured_attrs: dict[str, Any] = {}
+    real_span = MagicMock()
+    real_span.set_attribute = lambda k, v: captured_attrs.update({k: v})
+
+    @contextmanager
+    def fake_span(*_args, **kwargs):
+        captured_attrs.update(kwargs.get("attributes", {}))
+        yield real_span
+
+    with patch.object(client_module.tracer, "start_as_current_span", fake_span):
+        await client.call("m", {"x": 1}, idempotency_key="run-123:ingest")
+
+    assert captured_payload["idempotency_key"] == "run-123:ingest"
+    assert captured_attrs["a2a.idempotency_key"] == "run-123:ingest"
+    await client.aclose()

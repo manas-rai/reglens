@@ -57,15 +57,25 @@ class A2AClient:
         params: dict[str, Any],
         *,
         model: str | None = None,
+        idempotency_key: str | None = None,
     ) -> Any:
-        """Call a JSON-RPC method and return the result, with retries + OTel span."""
+        """Call a JSON-RPC method and return the result, with retries + OTel span.
+
+        ``idempotency_key`` is forwarded to the server in the JSON-RPC envelope.
+        Pair it with retries: the server caches results by ``(method, key)`` so
+        a retried call returns the same result without re-running the handler.
+        """
         attrs: dict[str, str] = {"a2a.method": method, "a2a.url": self._base_url}
         if model:
             attrs["a2a.model"] = model
+        if idempotency_key:
+            attrs["a2a.idempotency_key"] = idempotency_key
         with tracer.start_as_current_span(f"a2a.{method}", attributes=attrs) as span:
             attempt_box = [0]
             try:
-                return await self._call_with_retry(method, params, span, attempt_box)
+                return await self._call_with_retry(
+                    method, params, span, attempt_box, idempotency_key
+                )
             finally:
                 span.set_attribute("a2a.attempt_count", attempt_box[0])
 
@@ -81,14 +91,17 @@ class A2AClient:
         params: dict[str, Any],
         span: trace.Span,
         attempt_box: list[int],
+        idempotency_key: str | None = None,
     ) -> Any:
         attempt_box[0] += 1
-        payload = {
+        payload: dict[str, Any] = {
             "jsonrpc": "2.0",
             "id": str(uuid.uuid4()),
             "method": method,
             "params": params,
         }
+        if idempotency_key:
+            payload["idempotency_key"] = idempotency_key
         span.set_attribute("a2a.request_bytes", len(str(payload)))
 
         response = await self._client.post(

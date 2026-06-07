@@ -74,6 +74,7 @@ async def node_ingest(state: SupervisorState) -> dict[str, Any]:
                 "regulation_ref": regulation_ref,
                 "domain": domain,
             },
+            idempotency_key=f"{run_id}:ingest",
         )
 
     obligations = [Obligation.model_validate(o) for o in raw]
@@ -127,7 +128,9 @@ async def node_score_risks(state: SupervisorState) -> dict[str, Any]:
                 settings.a2a_risk_scorer_url, timeout=settings.a2a_timeout_seconds
             ) as client:
                 raw = await client.call(
-                    "score_gap", {"gap_result": gap.model_dump(mode="json")}
+                    "score_gap",
+                    {"gap_result": gap.model_dump(mode="json")},
+                    idempotency_key=f"{run_id}:score_risks:{gap.obligation.id}",
                 )
             return RiskScore.model_validate(raw)
 
