@@ -53,6 +53,8 @@ def _build_runnable_config(
 async def update_run_status(
     run_id: str, new_status: str, error: str | None = None
 ) -> None:
+    import json
+
     async with db_session() as session:
         if error:
             await session.execute(
@@ -70,6 +72,18 @@ async def update_run_status(
                 ),
                 {"status": new_status, "id": run_id},
             )
+
+        payload: dict[str, Any] = {"status": new_status}
+        if error:
+            payload["error"] = error
+        await session.execute(
+            text(
+                "INSERT INTO audit_log (run_id, node, actor, payload)"
+                " VALUES (CAST(:run_id AS uuid), 'status_transition', 'system',"
+                " CAST(:payload AS jsonb))"
+            ),
+            {"run_id": run_id, "payload": json.dumps(payload)},
+        )
 
 
 async def run_pipeline(
@@ -197,6 +211,11 @@ async def resume_pipeline(
                 await sse.push(run_id, {"node": node_name, "status": "running"})
 
         final_status = "completed" if approved else "rejected"
+        # When approved, node_generate_report has already set status='completed'.
+        # When rejected, the node only writes a 'rejected' audit row — we own the
+        # DB status transition here so /runs/{id} reflects the final state.
+        if not approved:
+            await update_run_status(run_id, "rejected")
         await sse.push(run_id, {"node": "done", "status": final_status})
         logger.info(
             "Pipeline finished", extra={"run_id": run_id, "status": final_status}

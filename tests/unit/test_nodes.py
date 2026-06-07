@@ -137,6 +137,24 @@ async def test_write_audit_executes_sql() -> None:
     session.execute.assert_called_once()
 
 
+async def test_write_audit_defaults_actor_to_system() -> None:
+    db_ctx, session = _mock_db_session()
+    with patch.object(nodes_module, "db_session", db_ctx):
+        await nodes_module._write_audit("run-001", "ingest", {"count": 5})
+    params = session.execute.call_args[0][1]
+    assert params["actor"] == "system"
+
+
+async def test_write_audit_human_actor() -> None:
+    db_ctx, session = _mock_db_session()
+    with patch.object(nodes_module, "db_session", db_ctx):
+        await nodes_module._write_audit(
+            "run-001", "approved", {"edit_count": 1}, actor="human"
+        )
+    params = session.execute.call_args[0][1]
+    assert params["actor"] == "human"
+
+
 # ---------------------------------------------------------------------------
 # node_ingest
 
@@ -321,3 +339,71 @@ async def test_node_generate_report_with_edits() -> None:
 
     final = result["final_report"]
     assert final.risk_scores[0].gap_result.status == GapStatus.NOT_APPLICABLE
+
+
+async def test_node_generate_report_audits_edit_diffs_as_human() -> None:
+    """Approval with edits writes a 'human' audit row that captures from/to per gap."""
+    import json as _json
+
+    gap = _make_gap("OBL-001", GapStatus.GAP)
+    rs = RiskScore(
+        gap_result=gap, risk_level=RiskLevel.HIGH, score=7.0, justification="j"
+    )
+    db_ctx, session = _mock_db_session()
+
+    edits = [{"gap_id": "OBL-001", "status": "not_applicable"}]
+    with (
+        patch.object(nodes_module, "db_session", db_ctx),
+        patch(
+            "reglens.supervisor.nodes.interrupt",
+            return_value={"approved": True, "edits": edits},
+        ),
+    ):
+        await nodes_module.node_generate_report(_make_state(risk_scores=[rs]))
+
+    audit_calls = [c for c in session.execute.call_args_list if "actor" in c[0][1]]
+    human_calls = [c for c in audit_calls if c[0][1]["actor"] == "human"]
+    assert human_calls, "expected at least one human-actor audit row"
+    approved_call = next(c for c in human_calls if c[0][1]["node"] == "approved")
+    payload = _json.loads(approved_call[0][1]["payload"])
+    assert payload["edit_count"] == 1
+    assert payload["edits"] == [
+        {"gap_id": "OBL-001", "from": "gap", "to": "not_applicable"}
+    ]
+
+
+async def test_node_generate_report_rejection_audits_as_human() -> None:
+    risk_scores = [_make_risk_score()]
+    db_ctx, session = _mock_db_session()
+
+    with (
+        patch.object(nodes_module, "db_session", db_ctx),
+        patch(
+            "reglens.supervisor.nodes.interrupt",
+            return_value={"approved": False, "edits": []},
+        ),
+    ):
+        await nodes_module.node_generate_report(_make_state(risk_scores=risk_scores))
+
+    audit_calls = [c for c in session.execute.call_args_list if "actor" in c[0][1]]
+    rejected_calls = [c for c in audit_calls if c[0][1]["node"] == "rejected"]
+    assert len(rejected_calls) == 1
+    assert rejected_calls[0][0][1]["actor"] == "human"
+
+
+async def test_node_generate_report_approval_emits_status_transition() -> None:
+    risk_scores = [_make_risk_score()]
+    db_ctx, session = _mock_db_session()
+
+    with (
+        patch.object(nodes_module, "db_session", db_ctx),
+        patch(
+            "reglens.supervisor.nodes.interrupt",
+            return_value={"approved": True, "edits": []},
+        ),
+    ):
+        await nodes_module.node_generate_report(_make_state(risk_scores=risk_scores))
+
+    audit_calls = [c for c in session.execute.call_args_list if "actor" in c[0][1]]
+    nodes_seen = [c[0][1]["node"] for c in audit_calls]
+    assert "status_transition" in nodes_seen
