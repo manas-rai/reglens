@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -299,4 +300,71 @@ async def test_client_sets_otel_attributes_on_call() -> None:
     client._client.post = mock_post  # type: ignore[method-assign]
     result = await client.call("my_method", {})
     assert result == "done"
+    await client.aclose()
+
+
+async def test_client_records_attempt_count_on_success() -> None:
+    """Single-attempt success records attempt_count=1."""
+    from reglens.a2a import client as client_module
+
+    client = A2AClient("http://agent:8001")
+    client._client.post = AsyncMock(  # type: ignore[method-assign]
+        return_value=_make_httpx_response(
+            {"jsonrpc": "2.0", "id": "1", "result": "ok", "error": None}
+        )
+    )
+
+    captured: dict[str, int] = {}
+    real_span = MagicMock()
+    real_span.set_attribute = lambda k, v: captured.update({k: v})
+
+    @contextmanager
+    def fake_span(*_args, **_kwargs):
+        yield real_span
+
+    with patch.object(client_module.tracer, "start_as_current_span", fake_span):
+        await client.call("m", {})
+    assert captured["a2a.attempt_count"] == 1
+    await client.aclose()
+
+
+async def test_client_records_attempt_count_after_retries() -> None:
+    """Two transient failures then success records attempt_count=3."""
+    from reglens.a2a import client as client_module
+
+    client = A2AClient("http://agent:8001")
+    ok_response = _make_httpx_response(
+        {"jsonrpc": "2.0", "id": "1", "result": "ok", "error": None}
+    )
+    client._client.post = AsyncMock(  # type: ignore[method-assign]
+        side_effect=[
+            httpx.ConnectError("refused"),
+            httpx.ConnectError("refused"),
+            ok_response,
+        ]
+    )
+
+    captured: dict[str, int] = {}
+    real_span = MagicMock()
+    real_span.set_attribute = lambda k, v: captured.update({k: v})
+
+    @contextmanager
+    def fake_span(*_args, **_kwargs):
+        yield real_span
+
+    async def _no_sleep(_seconds: float) -> None:
+        return None
+
+    # tenacity binds its default sleep at AsyncRetrying-construction time, so
+    # patching the module won't help — override the bound retry instance directly.
+    retry_obj = A2AClient._call_with_retry.retry  # type: ignore[attr-defined]
+    original_sleep = retry_obj.sleep
+    retry_obj.sleep = _no_sleep
+    try:
+        with patch.object(client_module.tracer, "start_as_current_span", fake_span):
+            await client.call("m", {})
+    finally:
+        retry_obj.sleep = original_sleep
+
+    assert captured["a2a.attempt_count"] == 3
     await client.aclose()

@@ -11,6 +11,7 @@ import instructor
 from pydantic import BaseModel
 
 from reglens.config import get_settings
+from reglens.llm._retry import llm_retrying
 
 logger = logging.getLogger(__name__)
 
@@ -36,14 +37,19 @@ async def structured_complete[T: BaseModel](
 ) -> T:
     """Call Claude and parse the response into a Pydantic model via instructor."""
     client = _get_instructor_client()
-    result, completion = await client.messages.create_with_completion(
-        model=model,
-        max_tokens=max_tokens,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-        response_model=response_model,
-        **kwargs,
-    )
+    result: T | None = None
+    completion: Any = None
+    async for attempt in llm_retrying():
+        with attempt:
+            result, completion = await client.messages.create_with_completion(
+                model=model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+                response_model=response_model,
+                **kwargs,
+            )
+    assert result is not None and completion is not None
     usage = completion.usage
     logger.debug(
         "Claude call",
