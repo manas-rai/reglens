@@ -10,6 +10,7 @@ from google import genai
 from google.genai import types as genai_types
 
 from reglens.config import get_settings
+from reglens.llm._retry import llm_retrying
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +42,15 @@ async def embed_text(text: str) -> list[float]:
     """Embed a single text string, truncated to EMBEDDING_DIM dimensions."""
     client = _get_embedding_client()
     config = genai_types.EmbedContentConfig(output_dimensionality=EMBEDDING_DIM)
-    response = await client.aio.models.embed_content(
-        model=EMBEDDING_MODEL,
-        contents=text,
-        config=config,
-    )
-    return list(response.embeddings[0].values)  # type: ignore[index, arg-type]
+    response: Any = None
+    async for attempt in llm_retrying():
+        with attempt:
+            response = await client.aio.models.embed_content(
+                model=EMBEDDING_MODEL,
+                contents=text,
+                config=config,
+            )
+    return list(response.embeddings[0].values)
 
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
@@ -71,11 +75,14 @@ async def generate(
         config_kwargs["response_schema"] = response_schema
 
     config = genai_types.GenerateContentConfig(**config_kwargs)
-    response = await client.aio.models.generate_content(
-        model=model,
-        contents=prompt,
-        config=config,
-    )
+    response: Any = None
+    async for attempt in llm_retrying():
+        with attempt:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=config,
+            )
     return response.text or ""
 
 
@@ -96,11 +103,14 @@ async def generate_multimodal(
         config_kwargs["response_schema"] = response_schema
 
     config = genai_types.GenerateContentConfig(**config_kwargs)
-    response = await client.aio.models.generate_content(
-        model=model,
-        contents=parts,
-        config=config,
-    )
+    response: Any = None
+    async for attempt in llm_retrying():
+        with attempt:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=parts,
+                config=config,
+            )
     if not response.text:
         candidate = response.candidates[0] if response.candidates else None
         finish_reason = candidate.finish_reason if candidate else "NO_CANDIDATES"

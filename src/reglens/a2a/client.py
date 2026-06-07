@@ -63,8 +63,11 @@ class A2AClient:
         if model:
             attrs["a2a.model"] = model
         with tracer.start_as_current_span(f"a2a.{method}", attributes=attrs) as span:
-            result = await self._call_with_retry(method, params, span)
-            return result
+            attempt_box = [0]
+            try:
+                return await self._call_with_retry(method, params, span, attempt_box)
+            finally:
+                span.set_attribute("a2a.attempt_count", attempt_box[0])
 
     @retry(
         retry=retry_if_exception_type(_RETRYABLE),
@@ -77,7 +80,9 @@ class A2AClient:
         method: str,
         params: dict[str, Any],
         span: trace.Span,
+        attempt_box: list[int],
     ) -> Any:
+        attempt_box[0] += 1
         payload = {
             "jsonrpc": "2.0",
             "id": str(uuid.uuid4()),

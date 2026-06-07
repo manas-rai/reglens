@@ -4,12 +4,49 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import anthropic
+import pytest
+from google.genai import errors as genai_errors
 from pydantic import BaseModel
 
 import reglens.llm.claude as claude_module
 import reglens.llm.gemini as gemini_module
 from reglens.llm.claude import structured_complete
 from reglens.llm.gemini import embed_text, embed_texts, generate, generate_multimodal
+
+
+@pytest.fixture(autouse=True)
+def _skip_retry_sleeps():
+    """Tenacity binds its default sleep at AsyncRetrying-construction time, so
+    patching the module won't help — wrap llm_retrying in each consumer module
+    so the returned AsyncRetrying has its sleep neutered."""
+    from reglens.llm import _retry as retry_module
+
+    async def _no_sleep(_seconds: float) -> None:
+        return None
+
+    original = retry_module.llm_retrying
+
+    def _fast(max_attempts: int = retry_module.DEFAULT_MAX_ATTEMPTS):
+        r = original(max_attempts=max_attempts)
+        r.sleep = _no_sleep
+        return r
+
+    with (
+        patch.object(claude_module, "llm_retrying", _fast),
+        patch.object(gemini_module, "llm_retrying", _fast),
+    ):
+        yield
+
+
+def _make_anthropic_error(cls):
+    """Anthropic exception classes require a Response object — build a minimal one."""
+    import httpx
+
+    req = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    resp = httpx.Response(status_code=500, request=req)
+    return cls(message="boom", response=resp, body=None)
+
 
 # ---------------------------------------------------------------------------
 # claude.py
@@ -41,6 +78,69 @@ async def test_structured_complete_returns_model() -> None:
 
     assert isinstance(result, _SampleModel)
     assert result.value == "test"
+
+
+async def test_structured_complete_retries_transient_then_succeeds() -> None:
+    """Two InternalServerError responses, then success — should call 3 times."""
+    mock_result = _SampleModel(value="ok")
+    mock_completion = MagicMock()
+    mock_completion.usage.input_tokens = 1
+    mock_completion.usage.output_tokens = 1
+
+    error = _make_anthropic_error(anthropic.InternalServerError)
+    mock_instructor = AsyncMock()
+    mock_instructor.messages.create_with_completion = AsyncMock(
+        side_effect=[error, error, (mock_result, mock_completion)]
+    )
+
+    with patch.object(
+        claude_module, "_get_instructor_client", return_value=mock_instructor
+    ):
+        result = await structured_complete(
+            response_model=_SampleModel, system="s", user="u"
+        )
+
+    assert result.value == "ok"
+    assert mock_instructor.messages.create_with_completion.call_count == 3
+
+
+async def test_structured_complete_does_not_retry_bad_request() -> None:
+    """BadRequestError is non-transient — should raise on first attempt."""
+    import httpx
+
+    req = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    resp = httpx.Response(status_code=400, request=req)
+    err = anthropic.BadRequestError(message="bad", response=resp, body=None)
+
+    mock_instructor = AsyncMock()
+    mock_instructor.messages.create_with_completion = AsyncMock(side_effect=err)
+
+    with (
+        patch.object(
+            claude_module, "_get_instructor_client", return_value=mock_instructor
+        ),
+        pytest.raises(anthropic.BadRequestError),
+    ):
+        await structured_complete(response_model=_SampleModel, system="s", user="u")
+
+    assert mock_instructor.messages.create_with_completion.call_count == 1
+
+
+async def test_structured_complete_gives_up_after_max_attempts() -> None:
+    """Persistent transient error — raises after exhausting attempts (default 3)."""
+    error = _make_anthropic_error(anthropic.InternalServerError)
+    mock_instructor = AsyncMock()
+    mock_instructor.messages.create_with_completion = AsyncMock(side_effect=error)
+
+    with (
+        patch.object(
+            claude_module, "_get_instructor_client", return_value=mock_instructor
+        ),
+        pytest.raises(anthropic.InternalServerError),
+    ):
+        await structured_complete(response_model=_SampleModel, system="s", user="u")
+
+    assert mock_instructor.messages.create_with_completion.call_count == 3
 
 
 async def test_structured_complete_passes_model_and_tokens() -> None:
@@ -130,6 +230,63 @@ def _make_generation_client(text: str) -> MagicMock:
     mock_client = MagicMock()
     mock_client.aio = mock_aio
     return mock_client
+
+
+async def test_generate_retries_on_server_error() -> None:
+    """Gemini ServerError → retry succeeds on third attempt."""
+    ok_response = MagicMock()
+    ok_response.text = "after retries"
+
+    err = genai_errors.ServerError(code=503, response_json={"error": "unavailable"})
+    mock_aio = AsyncMock()
+    mock_aio.models.generate_content = AsyncMock(side_effect=[err, err, ok_response])
+    mock_client = MagicMock()
+    mock_client.aio = mock_aio
+
+    with patch.object(
+        gemini_module, "_get_generation_client", return_value=mock_client
+    ):
+        result = await generate(model="gemini-2.5-flash", prompt="hi")
+
+    assert result == "after retries"
+    assert mock_aio.models.generate_content.call_count == 3
+
+
+async def test_generate_does_not_retry_on_client_error_400() -> None:
+    """Gemini ClientError 400 → non-transient, fails on first attempt."""
+    err = genai_errors.ClientError(code=400, response_json={"error": "bad request"})
+    mock_aio = AsyncMock()
+    mock_aio.models.generate_content = AsyncMock(side_effect=err)
+    mock_client = MagicMock()
+    mock_client.aio = mock_aio
+
+    with (
+        patch.object(gemini_module, "_get_generation_client", return_value=mock_client),
+        pytest.raises(genai_errors.ClientError),
+    ):
+        await generate(model="gemini-2.5-flash", prompt="hi")
+
+    assert mock_aio.models.generate_content.call_count == 1
+
+
+async def test_generate_retries_on_rate_limit() -> None:
+    """Gemini 429 → retryable."""
+    ok_response = MagicMock()
+    ok_response.text = "ok"
+    err = genai_errors.ClientError(code=429, response_json={"error": "rate"})
+
+    mock_aio = AsyncMock()
+    mock_aio.models.generate_content = AsyncMock(side_effect=[err, ok_response])
+    mock_client = MagicMock()
+    mock_client.aio = mock_aio
+
+    with patch.object(
+        gemini_module, "_get_generation_client", return_value=mock_client
+    ):
+        result = await generate(model="gemini-2.5-flash", prompt="hi")
+
+    assert result == "ok"
+    assert mock_aio.models.generate_content.call_count == 2
 
 
 async def test_generate_returns_text() -> None:
