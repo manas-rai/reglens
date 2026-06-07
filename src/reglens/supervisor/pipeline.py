@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 
@@ -11,7 +12,6 @@ from sqlalchemy import text
 
 from evals.metrics.run_metrics import compute_run_metrics, write_run_metrics
 from reglens.api import sse
-from reglens.config import get_settings
 from reglens.persistence.db import db_session
 from reglens.supervisor.checkpoint import get_checkpointer
 from reglens.supervisor.graph import build_supervisor_graph
@@ -32,9 +32,11 @@ def _build_runnable_config(
     ``operation`` labels the top-level trace ("run" vs "resume") so LangSmith
     can distinguish initial executions from HITL resumes for the same thread.
     """
-    settings = get_settings()
+    # Read ENVIRONMENT directly rather than calling get_settings() so this
+    # helper stays usable in tests that don't construct a full Settings object.
+    environment = os.environ.get("ENVIRONMENT", "development")
     metadata: dict[str, Any] = {"run_id": run_id, "operation": operation}
-    tags: list[str] = [settings.environment, operation]
+    tags: list[str] = [environment, operation]
     if regulation_ref is not None:
         metadata["regulation_ref"] = regulation_ref
     if domain is not None:
