@@ -1,10 +1,37 @@
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+// API client: every call reads base URL + key from the in-memory store
+// hydrated from localStorage on the client. SSR has no window, so reads
+// fall back to env vars (kept for local dev parity with the backend
+// docker-compose URL).
 
-export const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "dev-key";
+const LS_BASE_URL = "reglens.apiBaseUrl";
+const LS_API_KEY = "reglens.apiKey";
+
+const ENV_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const ENV_API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
+
+export function getApiBaseUrl(): string {
+  if (typeof window === "undefined") return ENV_BASE_URL;
+  return window.localStorage.getItem(LS_BASE_URL) || ENV_BASE_URL;
+}
+
+export function getApiKey(): string {
+  if (typeof window === "undefined") return ENV_API_KEY;
+  return window.localStorage.getItem(LS_API_KEY) || ENV_API_KEY;
+}
+
+export function setApiConfig(baseUrl: string, apiKey: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LS_BASE_URL, baseUrl);
+  window.localStorage.setItem(LS_API_KEY, apiKey);
+}
+
+export function hasApiKey(): boolean {
+  return getApiKey().length > 0;
+}
 
 function authHeaders(): HeadersInit {
-  return { "x-api-key": API_KEY };
+  return { "x-api-key": getApiKey() };
 }
 
 export interface RunStatus {
@@ -15,6 +42,12 @@ export interface RunStatus {
   error_message: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface RunListResponse {
+  items: RunStatus[];
+  limit: number;
+  offset: number;
 }
 
 export interface RiskScore {
@@ -54,8 +87,29 @@ export interface Edit {
   status?: string;
 }
 
+export interface Stats {
+  total_runs: number;
+  by_status: Record<string, number>;
+  total_cost_usd: number;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    ...init,
+    headers: { ...authHeaders(), ...(init?.headers ?? {}) },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}: ${text || path}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export const fetcher = <T>(path: string): Promise<T> => request<T>(path);
+
 export async function createRun(form: FormData): Promise<{ run_id: string }> {
-  const res = await fetch(`${API_BASE_URL}/runs`, {
+  const res = await fetch(`${getApiBaseUrl()}/runs`, {
     method: "POST",
     headers: authHeaders(),
     body: form,
@@ -64,53 +118,46 @@ export async function createRun(form: FormData): Promise<{ run_id: string }> {
   return res.json();
 }
 
-export async function getRun(runId: string): Promise<RunStatus> {
-  const res = await fetch(`${API_BASE_URL}/runs/${runId}`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`getRun failed: ${res.status}`);
-  return res.json();
-}
+export const getRun = (runId: string) => request<RunStatus>(`/runs/${runId}`);
 
-export async function getDraft(runId: string): Promise<ComplianceReport> {
-  const res = await fetch(`${API_BASE_URL}/runs/${runId}/draft`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`getDraft failed: ${res.status}`);
-  const body = (await res.json()) as { draft_report: ComplianceReport };
-  return body.draft_report;
-}
+export const listRuns = (params: {
+  status?: string;
+  domain?: string;
+  limit?: number;
+  offset?: number;
+}) => {
+  const sp = new URLSearchParams();
+  if (params.status) sp.set("status", params.status);
+  if (params.domain) sp.set("domain", params.domain);
+  sp.set("limit", String(params.limit ?? 20));
+  sp.set("offset", String(params.offset ?? 0));
+  return request<RunListResponse>(`/runs?${sp.toString()}`);
+};
 
-export async function getReport(runId: string): Promise<ComplianceReport> {
-  const res = await fetch(`${API_BASE_URL}/runs/${runId}/report`, {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`getReport failed: ${res.status}`);
-  return res.json();
-}
+export const getStats = () => request<Stats>("/stats");
+
+export const getDraft = (runId: string) =>
+  request<{ draft_report: ComplianceReport }>(`/runs/${runId}/draft`).then(
+    (b) => b.draft_report,
+  );
+
+export const getReport = (runId: string) =>
+  request<ComplianceReport>(`/runs/${runId}/report`);
 
 export async function approveRun(
   runId: string,
   approved: boolean,
   edits: Edit[] = [],
 ): Promise<{ run_id: string; status: string }> {
-  const res = await fetch(`${API_BASE_URL}/runs/${runId}/approve`, {
+  return request(`/runs/${runId}/approve`, {
     method: "POST",
-    headers: {
-      ...authHeaders(),
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ approved, edits }),
   });
-  if (!res.ok) throw new Error(`approveRun failed: ${res.status}`);
-  return res.json();
 }
 
 export function eventsUrl(runId: string): string {
-  const url = new URL(`${API_BASE_URL}/runs/${runId}/events`);
-  url.searchParams.set("x-api-key", API_KEY);
+  const url = new URL(`${getApiBaseUrl()}/runs/${runId}/events`);
+  url.searchParams.set("x-api-key", getApiKey());
   return url.toString();
 }
