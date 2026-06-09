@@ -162,6 +162,42 @@ async def run_events(run_id: str) -> EventSourceResponse:
     return EventSourceResponse(generator())
 
 
+@router.get(
+    "/{run_id}/draft",
+    dependencies=[Depends(require_api_key)],
+)
+async def get_draft(run_id: str) -> dict[str, Any]:
+    """Return the interrupted draft report while the run is awaiting approval.
+
+    Used by the demo UI's HITL review page; the final ``/report`` endpoint is
+    only available once the run has reached ``completed``.
+    """
+    async with db_session() as session:
+        run = await session.get(Run, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.status != "awaiting_approval":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Draft not available — run status is '{run.status}'",
+        )
+
+    async with get_checkpointer() as checkpointer:
+        graph = build_supervisor_graph(checkpointer)
+        state = await graph.aget_state({"configurable": {"thread_id": run_id}})
+        tasks = state.tasks or ()
+        for task in tasks:
+            interrupts = getattr(task, "interrupts", ()) or ()
+            for interrupt_obj in interrupts:
+                value = getattr(interrupt_obj, "value", None)
+                if isinstance(value, dict) and "draft_report" in value:
+                    draft = value["draft_report"]
+                    if isinstance(draft, ComplianceReport):
+                        draft = draft.model_dump(mode="json")
+                    return {"draft_report": draft}
+        raise HTTPException(status_code=404, detail="Draft not found in graph state")
+
+
 @router.post(
     "/{run_id}/approve",
     response_model=ApproveResponse,
