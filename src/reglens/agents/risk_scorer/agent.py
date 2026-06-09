@@ -19,6 +19,7 @@ from reglens.schemas.risk import RiskLevel, RiskScore
 logger = logging.getLogger(__name__)
 
 RISK_MODEL = "gemini-2.5-flash"
+RISK_FALLBACK_MODEL = "gemini-2.0-flash"
 
 _RUBRIC_PATH = (
     Path(__file__).parent.parent.parent / "domain" / "banking" / "risk_rubric.yaml"
@@ -67,6 +68,7 @@ async def score_gap(gap_result: GapResult) -> RiskScore:
         prompt=prompt,
         system_instruction=SYSTEM_PROMPT,
         response_schema=_RISK_SCHEMA,
+        fallback_model=RISK_FALLBACK_MODEL,
     )
 
     if not raw:

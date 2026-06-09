@@ -18,6 +18,7 @@ from reglens.schemas.obligation import Obligation, ObligationType
 logger = logging.getLogger(__name__)
 
 INGESTION_MODEL = "gemini-2.5-pro"
+INGESTION_FALLBACK_MODEL = "gemini-2.5-flash"
 
 # JSON schema passed to Gemini for structured output
 _OBLIGATION_SCHEMA = {
@@ -79,6 +80,7 @@ async def extract_obligations(
         system_instruction=SYSTEM_PROMPT,
         response_schema=_OBLIGATION_SCHEMA,
         max_output_tokens=65536,
+        fallback_model=INGESTION_FALLBACK_MODEL,
     )
 
     if not raw:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anthropic
@@ -127,7 +128,9 @@ async def test_structured_complete_does_not_retry_bad_request() -> None:
 
 
 async def test_structured_complete_gives_up_after_max_attempts() -> None:
-    """Persistent transient error — raises after exhausting attempts (default 3)."""
+    """Persistent transient error — raises after exhausting all retry attempts."""
+    from reglens.llm._retry import DEFAULT_MAX_ATTEMPTS
+
     error = _make_anthropic_error(anthropic.InternalServerError)
     mock_instructor = AsyncMock()
     mock_instructor.messages.create_with_completion = AsyncMock(side_effect=error)
@@ -140,7 +143,10 @@ async def test_structured_complete_gives_up_after_max_attempts() -> None:
     ):
         await structured_complete(response_model=_SampleModel, system="s", user="u")
 
-    assert mock_instructor.messages.create_with_completion.call_count == 3
+    assert (
+        mock_instructor.messages.create_with_completion.call_count
+        == DEFAULT_MAX_ATTEMPTS
+    )
 
 
 async def test_structured_complete_passes_model_and_tokens() -> None:
@@ -386,6 +392,81 @@ async def test_generate_multimodal_logs_on_empty() -> None:
             parts=[genai_types.Part(text="test")],
         )
     assert result == ""
+
+
+async def test_generate_falls_back_on_persistent_server_error() -> None:
+    """Primary model 503 after all retries → fallback model is invoked once."""
+    from reglens.llm._retry import DEFAULT_MAX_ATTEMPTS
+
+    err = genai_errors.ServerError(code=503, response_json={"error": "unavailable"})
+    ok_response = MagicMock()
+    ok_response.text = "fallback ok"
+
+    side_effects: list[Any] = [err] * DEFAULT_MAX_ATTEMPTS + [ok_response]
+    mock_aio = AsyncMock()
+    mock_aio.models.generate_content = AsyncMock(side_effect=side_effects)
+    mock_client = MagicMock()
+    mock_client.aio = mock_aio
+
+    with patch.object(
+        gemini_module, "_get_generation_client", return_value=mock_client
+    ):
+        result = await generate(
+            model="gemini-2.5-flash",
+            prompt="hi",
+            fallback_model="gemini-2.0-flash",
+        )
+
+    assert result == "fallback ok"
+    assert mock_aio.models.generate_content.call_count == DEFAULT_MAX_ATTEMPTS + 1
+    last_call_kwargs = mock_aio.models.generate_content.call_args_list[-1][1]
+    assert last_call_kwargs["model"] == "gemini-2.0-flash"
+
+
+async def test_generate_no_fallback_raises_after_retries() -> None:
+    """Without a fallback_model, persistent ServerError raises through."""
+    err = genai_errors.ServerError(code=503, response_json={"error": "unavailable"})
+    mock_aio = AsyncMock()
+    mock_aio.models.generate_content = AsyncMock(side_effect=err)
+    mock_client = MagicMock()
+    mock_client.aio = mock_aio
+
+    with (
+        patch.object(gemini_module, "_get_generation_client", return_value=mock_client),
+        pytest.raises(genai_errors.ServerError),
+    ):
+        await generate(model="gemini-2.5-flash", prompt="hi")
+
+
+async def test_generate_multimodal_falls_back_on_persistent_server_error() -> None:
+    from google.genai import types as genai_types
+
+    from reglens.llm._retry import DEFAULT_MAX_ATTEMPTS
+
+    err = genai_errors.ServerError(code=503, response_json={"error": "unavailable"})
+    ok_response = MagicMock()
+    ok_response.text = "multimodal fallback ok"
+    ok_response.candidates = []
+    ok_response.prompt_feedback = None
+
+    side_effects: list[Any] = [err] * DEFAULT_MAX_ATTEMPTS + [ok_response]
+    mock_aio = AsyncMock()
+    mock_aio.models.generate_content = AsyncMock(side_effect=side_effects)
+    mock_client = MagicMock()
+    mock_client.aio = mock_aio
+
+    with patch.object(
+        gemini_module, "_get_generation_client", return_value=mock_client
+    ):
+        result = await generate_multimodal(
+            model="gemini-2.5-pro",
+            parts=[genai_types.Part(text="t")],
+            fallback_model="gemini-2.5-flash",
+        )
+
+    assert result == "multimodal fallback ok"
+    last_call_kwargs = mock_aio.models.generate_content.call_args_list[-1][1]
+    assert last_call_kwargs["model"] == "gemini-2.5-flash"
 
 
 async def test_generate_multimodal_no_candidates_on_empty() -> None:
