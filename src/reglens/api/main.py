@@ -13,7 +13,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from reglens.api.middleware.request_id import RequestIDMiddleware
-from reglens.api.routers import health, runs
+from reglens.api.routers import health, policies, runs, stats
 from reglens.config import get_settings
 from reglens.errors import ReglensError
 from reglens.observability.langsmith import configure_langsmith
@@ -68,6 +68,8 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(runs.router)
+    app.include_router(policies.router)
+    app.include_router(stats.router)
 
     logger.info("RegLens API started", extra={"environment": settings.environment})
     return app

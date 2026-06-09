@@ -386,3 +386,217 @@ async def test_get_report_missing_in_state_returns_404(
             resp = await client.get(f"/runs/{run_id}/report")
 
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /runs (list)
+
+
+def _mock_list_session(rows: list[Any]):
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = rows
+    mock_result.scalars.return_value = mock_scalars
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    @asynccontextmanager
+    async def _ctx():
+        yield mock_session
+
+    return _ctx, mock_session
+
+
+async def test_list_runs_returns_items(transport: httpx.ASGITransport) -> None:
+    rows = [_make_run_mock("run-a"), _make_run_mock("run-b", status="completed")]
+    db_ctx, _ = _mock_list_session(rows)
+
+    with patch.object(runs_router, "db_session", db_ctx):
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            resp = await client.get("/runs?limit=10&offset=0")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["items"]) == 2
+    assert body["items"][1]["status"] == "completed"
+    assert body["limit"] == 10
+
+
+async def test_list_runs_passes_status_filter(transport: httpx.ASGITransport) -> None:
+    db_ctx, mock_session = _mock_list_session([])
+
+    with patch.object(runs_router, "db_session", db_ctx):
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            resp = await client.get("/runs?status=completed&domain=banking")
+
+    assert resp.status_code == 200
+    compiled_sql = str(mock_session.execute.call_args[0][0])
+    assert "status" in compiled_sql
+    assert "domain" in compiled_sql
+
+
+# ---------------------------------------------------------------------------
+# GET /runs/{id}/audit
+
+
+async def test_get_audit_returns_rows(transport: httpx.ASGITransport) -> None:
+    run = _make_run_mock(status="completed")
+    audit_row = MagicMock()
+    audit_row.id = 1
+    audit_row.node = "ingest"
+    audit_row.actor = "system"
+    audit_row.payload = {"obligation_count": 5}
+    audit_row.created_at = datetime(2024, 1, 1, 0, 5, 0)
+
+    mock_session = AsyncMock()
+    mock_session.get = AsyncMock(return_value=run)
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [audit_row]
+    mock_result.scalars.return_value = mock_scalars
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    @asynccontextmanager
+    async def db_ctx():
+        yield mock_session
+
+    with patch.object(runs_router, "db_session", db_ctx):
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            resp = await client.get(f"/runs/{uuid.uuid4()}/audit")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["items"][0]["node"] == "ingest"
+    assert body["items"][0]["actor"] == "system"
+    assert body["items"][0]["payload"] == {"obligation_count": 5}
+
+
+async def test_get_audit_404_when_run_missing(transport: httpx.ASGITransport) -> None:
+    db_ctx = _mock_db_session_factory(None)
+    with patch.object(runs_router, "db_session", db_ctx):
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            resp = await client.get(f"/runs/{uuid.uuid4()}/audit")
+    assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /runs/{id}/costs
+
+
+async def test_get_costs_returns_totals(transport: httpx.ASGITransport) -> None:
+    run = _make_run_mock()
+    row1 = MagicMock(
+        id=1,
+        agent="ingest",
+        model="gemini-2.5-pro",
+        prompt_tokens=100,
+        completion_tokens=50,
+        cost_usd=0.0125,
+        created_at=datetime(2024, 1, 1, 0, 1, 0),
+    )
+    row2 = MagicMock(
+        id=2,
+        agent="risk",
+        model="gemini-2.5-flash",
+        prompt_tokens=200,
+        completion_tokens=80,
+        cost_usd=0.0021,
+        created_at=datetime(2024, 1, 1, 0, 2, 0),
+    )
+
+    mock_session = AsyncMock()
+    mock_session.get = AsyncMock(return_value=run)
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [row1, row2]
+    mock_result.scalars.return_value = mock_scalars
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    @asynccontextmanager
+    async def db_ctx():
+        yield mock_session
+
+    with patch.object(runs_router, "db_session", db_ctx):
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            resp = await client.get(f"/runs/{uuid.uuid4()}/costs")
+
+    body = resp.json()
+    assert resp.status_code == 200
+    assert len(body["items"]) == 2
+    assert body["total_prompt_tokens"] == 300
+    assert body["total_completion_tokens"] == 130
+    assert abs(body["total_cost_usd"] - 0.0146) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# GET /runs/{id}/gaps
+
+
+async def test_get_gaps_404_when_not_yet_available(
+    transport: httpx.ASGITransport,
+) -> None:
+    run = _make_run_mock(status="running")
+    db_ctx = _mock_db_session_factory(run)
+
+    mock_state = MagicMock()
+    mock_state.values = {}
+    mock_graph = MagicMock()
+    mock_graph.aget_state = AsyncMock(return_value=mock_state)
+
+    @asynccontextmanager
+    async def cp_ctx():
+        yield MagicMock()
+
+    with (
+        patch.object(runs_router, "db_session", db_ctx),
+        patch.object(runs_router, "get_checkpointer", cp_ctx),
+        patch.object(runs_router, "build_supervisor_graph", return_value=mock_graph),
+    ):
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            resp = await client.get(f"/runs/{uuid.uuid4()}/gaps")
+
+    assert resp.status_code == 404
+
+
+async def test_get_gaps_returns_items(transport: httpx.ASGITransport) -> None:
+    run = _make_run_mock(status="awaiting_approval")
+    db_ctx = _mock_db_session_factory(run)
+
+    gap_mock = MagicMock()
+    gap_mock.model_dump = MagicMock(
+        return_value={"status": "gap", "obligation_id": "X"}
+    )
+    mock_state = MagicMock()
+    mock_state.values = {"gap_results": [gap_mock]}
+    mock_graph = MagicMock()
+    mock_graph.aget_state = AsyncMock(return_value=mock_state)
+
+    @asynccontextmanager
+    async def cp_ctx():
+        yield MagicMock()
+
+    with (
+        patch.object(runs_router, "db_session", db_ctx),
+        patch.object(runs_router, "get_checkpointer", cp_ctx),
+        patch.object(runs_router, "build_supervisor_graph", return_value=mock_graph),
+    ):
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            resp = await client.get(f"/runs/{uuid.uuid4()}/gaps")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["items"][0]["status"] == "gap"
