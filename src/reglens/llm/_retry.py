@@ -17,7 +17,7 @@ from tenacity import (
     wait_exponential,
 )
 
-DEFAULT_MAX_ATTEMPTS = 3
+DEFAULT_MAX_ATTEMPTS = 6
 
 
 def _is_transient_anthropic(exc: BaseException) -> bool:
@@ -57,6 +57,6 @@ def llm_retrying(max_attempts: int = DEFAULT_MAX_ATTEMPTS) -> AsyncRetrying:
     return AsyncRetrying(
         retry=retry_if_exception(_is_transient),
         stop=stop_after_attempt(max_attempts),
-        wait=wait_exponential(multiplier=1, min=1, max=8),
+        wait=wait_exponential(multiplier=1, min=1, max=30),
         reraise=True,
     )
