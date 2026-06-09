@@ -93,6 +93,39 @@ export interface Stats {
   total_cost_usd: number;
 }
 
+export interface AuditEntry {
+  id: number;
+  node: string;
+  actor: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface CostEntry {
+  id: number;
+  agent: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost_usd: number;
+  created_at: string;
+}
+
+export interface CostResponse {
+  items: CostEntry[];
+  total_cost_usd: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+}
+
+export interface GapResult {
+  obligation: { id: string; clause: string; text: string };
+  status: string;
+  gap_description?: string | null;
+  recommendation?: string | null;
+  reasoning: string;
+}
+
 export interface Policy {
   id: string;
   domain: string;
@@ -177,6 +210,15 @@ export const getDraft = (runId: string) =>
 
 export const getReport = (runId: string) =>
   request<ComplianceReport>(`/runs/${runId}/report`);
+
+export const getAudit = (runId: string) =>
+  request<{ items: AuditEntry[] }>(`/runs/${runId}/audit`);
+
+export const getCosts = (runId: string) =>
+  request<CostResponse>(`/runs/${runId}/costs`);
+
+export const getGaps = (runId: string) =>
+  request<{ items: GapResult[] }>(`/runs/${runId}/gaps`);
 
 export async function approveRun(
   runId: string,
