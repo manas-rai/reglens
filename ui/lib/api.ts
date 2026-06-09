@@ -93,6 +93,23 @@ export interface Stats {
   total_cost_usd: number;
 }
 
+export interface Policy {
+  id: string;
+  domain: string;
+  section: string | null;
+  title: string;
+  text: string;
+  owner: string | null;
+  tags: string[] | null;
+  created_at: string | null;
+}
+
+export interface PolicyListResponse {
+  items: Policy[];
+  limit: number;
+  offset: number;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
@@ -135,6 +152,23 @@ export const listRuns = (params: {
 };
 
 export const getStats = () => request<Stats>("/stats");
+
+export const listPolicies = (params: {
+  domain?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}) => {
+  const sp = new URLSearchParams();
+  if (params.domain) sp.set("domain", params.domain);
+  if (params.q) sp.set("q", params.q);
+  sp.set("limit", String(params.limit ?? 20));
+  sp.set("offset", String(params.offset ?? 0));
+  return request<PolicyListResponse>(`/policies?${sp.toString()}`);
+};
+
+export const getPolicy = (policyId: string) =>
+  request<Policy>(`/policies/${encodeURIComponent(policyId)}`);
 
 export const getDraft = (runId: string) =>
   request<{ draft_report: ComplianceReport }>(`/runs/${runId}/draft`).then(
