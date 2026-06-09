@@ -26,47 +26,59 @@ export default function RunProgressPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const es = new EventSource(eventsUrl(id));
+    let es: EventSource | null = null;
+    let cancelled = false;
 
-    es.onmessage = (msg) => {
-      try {
-        const data = JSON.parse(msg.data) as Omit<PipelineEvent, "ts">;
-        const evt: PipelineEvent = {
-          ...data,
-          ts: new Date().toLocaleTimeString(),
-        };
-        setEvents((prev) => [...prev, evt]);
-        if (data.status) setStatus(data.status);
-        if (TERMINAL.has(data.status)) {
-          es.close();
-          if (data.status === "awaiting_approval") {
-            router.push(`/runs/${id}/review`);
-          } else if (data.status === "completed") {
-            router.push(`/runs/${id}/report`);
-          }
+    function routeTerminal(s: string) {
+      if (s === "awaiting_approval") router.push(`/runs/${id}/review`);
+      else if (s === "completed") router.push(`/runs/${id}/report`);
+    }
+
+    getRun(id)
+      .then((r) => {
+        if (cancelled) return;
+        setStatus(r.status);
+        if (r.error_message) setError(r.error_message);
+        if (TERMINAL.has(r.status)) {
+          routeTerminal(r.status);
+          return;
         }
-      } catch (e) {
-        console.error("event parse", e);
-      }
-    };
 
-    es.onerror = () => {
-      es.close();
-      getRun(id)
-        .then((r) => {
-          setStatus(r.status);
-          if (r.status === "awaiting_approval") {
-            router.push(`/runs/${id}/review`);
-          } else if (r.status === "completed") {
-            router.push(`/runs/${id}/report`);
-          } else if (r.error_message) {
-            setError(r.error_message);
+        es = new EventSource(eventsUrl(id));
+        es.onmessage = (msg) => {
+          try {
+            const data = JSON.parse(msg.data) as Omit<PipelineEvent, "ts">;
+            const evt: PipelineEvent = {
+              ...data,
+              ts: new Date().toLocaleTimeString(),
+            };
+            setEvents((prev) => [...prev, evt]);
+            if (data.status) setStatus(data.status);
+            if (TERMINAL.has(data.status)) {
+              es?.close();
+              routeTerminal(data.status);
+            }
+          } catch (e) {
+            console.error("event parse", e);
           }
-        })
-        .catch((err) => setError(String(err)));
-    };
+        };
+        es.onerror = () => {
+          es?.close();
+          getRun(id)
+            .then((rr) => {
+              setStatus(rr.status);
+              if (TERMINAL.has(rr.status)) routeTerminal(rr.status);
+              else if (rr.error_message) setError(rr.error_message);
+            })
+            .catch((err) => setError(String(err)));
+        };
+      })
+      .catch((err) => setError(String(err)));
 
-    return () => es.close();
+    return () => {
+      cancelled = true;
+      es?.close();
+    };
   }, [id, router]);
 
   return (
