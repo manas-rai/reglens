@@ -133,7 +133,7 @@ export interface Policy {
   title: string;
   text: string;
   owner: string | null;
-  tags: string[] | null;
+  tags: string | null;
   created_at: string | null;
 }
 
