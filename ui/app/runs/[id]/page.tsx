@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { use, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useToast } from "@/components/Toasts";
 import {
   approveRun,
   eventsUrl,
@@ -541,6 +542,7 @@ function ReviewTab({
   id: string;
   onSubmitted: (approved: boolean) => void;
 }) {
+  const toast = useToast();
   const { report, error, isLoading } = useDraftOrReport(id, "awaiting_approval");
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -566,9 +568,17 @@ function ReviewTab({
           }))
         : [];
       await approveRun(id, approved, edits);
+      toast.push(
+        "success",
+        approved
+          ? `Approved${edits.length > 0 ? ` with ${edits.length} edit(s)` : ""}`
+          : "Run rejected",
+      );
       onSubmitted(approved);
     } catch (e) {
-      setSubmitError(String(e));
+      const msg = String(e);
+      setSubmitError(msg);
+      toast.push("error", msg);
       setSubmitting(false);
     }
   }

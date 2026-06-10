@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createRun } from "@/lib/api";
+import { useToast } from "@/components/Toasts";
 
 export default function UploadPage() {
   const router = useRouter();
+  const toast = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [regulationRef, setRegulationRef] = useState("RBI-MD-KYC-2016");
   const [domain, setDomain] = useState("banking");
@@ -26,9 +28,12 @@ export default function UploadPage() {
       form.append("regulation_ref", regulationRef);
       form.append("domain", domain);
       const { run_id } = await createRun(form);
+      toast.push("success", `Run started: ${run_id.slice(0, 8)}…`);
       router.push(`/runs/${run_id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      toast.push("error", `Upload failed: ${msg}`);
       setSubmitting(false);
     }
   }
