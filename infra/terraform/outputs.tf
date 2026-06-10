@@ -13,3 +13,15 @@ output "isolated_subnet_ids" {
 output "ecr_repository_urls" {
   value = module.ecr.repository_urls
 }
+
+output "rds_endpoint" {
+  value = module.rds.endpoint
+}
+
+output "ecs_cluster_name" {
+  value = module.ecs.cluster_name
+}
+
+output "migrate_task_definition_arn" {
+  value = module.ecs.migrate_task_definition_arn
+}
