@@ -29,7 +29,7 @@ defaults:
     working-directory: infra/terraform
 
 jobs:
-  terraform:
+  plan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,9 +60,38 @@ jobs:
         run: terraform validate
 
       - name: Plan
-        if: github.event_name == 'pull_request'
         run: terraform plan -input=false -no-color
 
+  # Waits for manual approval via the aws-demo environment's required
+  # reviewers before touching real infrastructure. Re-plans rather than
+  # consuming a saved plan artifact: this is a public repo, and artifacts
+  # are world-downloadable while plan files can embed sensitive values.
+  apply:
+    if: github.event_name == 'push'
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: aws-demo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.14"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/reglens-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Init
+        run: |
+          cat > backend.hcl <<EOF
+          bucket       = "reglens-tfstate-${{ vars.AWS_ACCOUNT_ID }}"
+          key          = "demo/terraform.tfstate"
+          region       = "${{ env.AWS_REGION }}"
+          use_lockfile = true
+          EOF
+          terraform init -input=false -backend-config=backend.hcl
+
       - name: Apply
-        if: github.event_name == 'push'
         run: terraform apply -input=false -auto-approve

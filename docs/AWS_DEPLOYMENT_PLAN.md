@@ -10,7 +10,7 @@ two ADK agents + Postgres + UI) for ~$42/mo at idle.
 2. **Region** — `ap-south-1` (Mumbai).
 3. **Domain** — none for now; ALB DNS name for the API, CloudFront default URL for the UI. Phase E adds Route53/ACM later if wanted.
 4. **Cost** — ~$42/mo at idle accepted; no auto-stop schedule.
-5. **CI/CD** — everything through GitHub Actions: image build + push to ECR, and `terraform plan` (PRs) / `terraform apply` (main). Auth via GitHub OIDC — no long-lived AWS keys in repo secrets. One-time local bootstrap creates the state bucket and the OIDC role.
+5. **CI/CD** — everything through GitHub Actions: image build + push to ECR, and `terraform plan` (PRs) / `terraform apply` (main, gated behind a required-reviewer approval on the `aws-demo` GitHub environment). Auth via GitHub OIDC — no long-lived AWS keys in repo secrets. One-time local bootstrap creates the state bucket and the OIDC role.
 
 ## Target topology
 

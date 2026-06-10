@@ -21,7 +21,10 @@ the `reglens-github-actions` CI role. Then:
 1. Copy the `account_id` output and set it as a **repository variable**
    named `AWS_ACCOUNT_ID` (GitHub → Settings → Secrets and variables →
    Actions → Variables).
-2. Commit nothing — bootstrap state stays local (`*.tfstate` is
+2. Create the approval gate: GitHub → Settings → Environments → New
+   environment → name it `aws-demo` → enable **Required reviewers** and
+   add yourself. The apply job pauses on this environment until approved.
+3. Commit nothing — bootstrap state stays local (`*.tfstate` is
    gitignored). It changes rarely; re-run `terraform apply` here if it
    ever needs updating.
 
@@ -29,7 +32,9 @@ the `reglens-github-actions` CI role. Then:
 
 - **PR touching `infra/terraform/`** → CI runs fmt check, validate, and
   `terraform plan`; review the plan in the job log before merging.
-- **Merge to `main`** → CI runs `terraform apply` automatically.
+- **Merge to `main`** → the plan job re-runs, then the apply job waits
+  on the `aws-demo` environment — approve it in the run page (Review
+  deployments → aws-demo → Approve) and it applies.
 - **Merge touching `src/`, `docker/`, or deps** → CI builds the three
   images (`api`, `langgraph`, `adk`) and pushes `:latest` + `:<sha>` to
   ECR.
