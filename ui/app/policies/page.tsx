@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
+import { SkeletonRows } from "@/components/Skeleton";
 import { fetcher, type PolicyListResponse } from "@/lib/api";
 
 const DOMAINS = ["banking", "healthcare", "energy"];
@@ -83,7 +84,7 @@ export default function PoliciesPage() {
 
       <div className="card">
         {isLoading ? (
-          <div className="muted">Loading…</div>
+          <SkeletonRows rows={5} cols={5} />
         ) : items.length === 0 ? (
           <div className="empty">No policies match these filters.</div>
         ) : (

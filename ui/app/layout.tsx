@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { Shell } from "@/components/Shell";
+import { ToastProvider } from "@/components/Toasts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +17,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Shell>{children}</Shell>
+        <ToastProvider>
+          <Shell>{children}</Shell>
+          <KeyboardShortcuts />
+        </ToastProvider>
       </body>
     </html>
   );

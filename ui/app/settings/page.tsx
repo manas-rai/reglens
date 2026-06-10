@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { getApiBaseUrl, getApiKey, setApiConfig } from "@/lib/api";
+import { useToast } from "@/components/Toasts";
 
 export default function SettingsPage() {
+  const toast = useToast();
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [saved, setSaved] = useState(false);
@@ -21,6 +23,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setApiConfig(baseUrl.trim(), apiKey.trim());
     setSaved(true);
+    toast.push("success", "API settings saved.");
     setTimeout(() => setSaved(false), 2000);
   }
 

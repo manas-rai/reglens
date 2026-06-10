@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
+import { SkeletonRows } from "@/components/Skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { fetcher, type RunListResponse } from "@/lib/api";
 
@@ -94,7 +95,7 @@ export default function RunsListPage() {
 
       <div className="card">
         {isLoading ? (
-          <div className="muted">Loading…</div>
+          <SkeletonRows rows={5} cols={6} />
         ) : items.length === 0 ? (
           <div className="empty">
             No runs match these filters.{" "}
