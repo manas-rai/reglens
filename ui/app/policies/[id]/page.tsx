@@ -73,15 +73,29 @@ export default function PolicyDetailPage({
 
           <div className="card">
             <h2 style={{ marginTop: 0 }}>{data.title}</h2>
-            {data.tags && data.tags.length > 0 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-                {data.tags.map((t) => (
-                  <span key={t} className="status-badge status-pending">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
+            {(() => {
+              const tags = (data.tags ?? "")
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean);
+              if (tags.length === 0) return null;
+              return (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    flexWrap: "wrap",
+                    marginBottom: 12,
+                  }}
+                >
+                  {tags.map((t) => (
+                    <span key={t} className="status-badge status-pending">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
             <pre
               style={{
                 whiteSpace: "pre-wrap",
