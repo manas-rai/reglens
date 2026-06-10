@@ -38,6 +38,9 @@ the `reglens-github-actions` CI role. Then:
 - **Merge touching `src/`, `docker/`, or deps** → CI builds the three
   images (`api`, `langgraph`, `adk`) and pushes `:latest` + `:<sha>` to
   ECR.
+- **Database migrations** → dispatch the `migrate` workflow (Actions →
+  migrate → Run workflow). It runs `alembic upgrade head` as a one-shot
+  Fargate task against RDS and fails the run if alembic fails.
 
 ## Local plan (optional)
 

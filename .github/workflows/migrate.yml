@@ -1,0 +1,77 @@
+name: migrate
+
+# Manually dispatched: run database migrations (alembic upgrade head) as a
+# one-shot Fargate task. Dispatch it after an apply that changes the schema,
+# or after the first RDS creation.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: migrate
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/reglens-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run migration task
+        id: run
+        run: |
+          SUBNET_ID=$(aws ec2 describe-subnets \
+            --filters "Name=tag:Name,Values=reglens-public-*" \
+            --query 'Subnets[0].SubnetId' --output text)
+          SG_ID=$(aws ec2 describe-security-groups \
+            --filters "Name=group-name,Values=reglens-service" \
+            --query 'SecurityGroups[0].GroupId' --output text)
+          echo "Subnet: $SUBNET_ID  SG: $SG_ID"
+
+          TASK_ARN=$(aws ecs run-task \
+            --cluster reglens \
+            --task-definition reglens-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SG_ID],assignPublicIp=ENABLED}" \
+            --query 'tasks[0].taskArn' --output text)
+          echo "Task: $TASK_ARN"
+          echo "task_arn=$TASK_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for completion
+        run: |
+          aws ecs wait tasks-stopped \
+            --cluster reglens \
+            --tasks "${{ steps.run.outputs.task_arn }}"
+
+      - name: Show logs
+        if: always()
+        run: |
+          TASK_ID="${{ steps.run.outputs.task_arn }}"
+          TASK_ID="${TASK_ID##*/}"
+          aws logs get-log-events \
+            --log-group-name /reglens/migrate \
+            --log-stream-name "migrate/migrate/$TASK_ID" \
+            --query 'events[].message' --output text || echo "(no logs yet)"
+
+      - name: Check exit code
+        run: |
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster reglens \
+            --tasks "${{ steps.run.outputs.task_arn }}" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          STOP_REASON=$(aws ecs describe-tasks \
+            --cluster reglens \
+            --tasks "${{ steps.run.outputs.task_arn }}" \
+            --query 'tasks[0].stoppedReason' --output text)
+          echo "Exit code: $EXIT_CODE  Stopped reason: $STOP_REASON"
+          [ "$EXIT_CODE" = "0" ]
