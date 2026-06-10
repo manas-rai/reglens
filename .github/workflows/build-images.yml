@@ -1,4 +1,4 @@
-name: images
+name: build-images
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - "docker/**"
       - "pyproject.toml"
       - "uv.lock"
-      - ".github/workflows/images.yml"
+      - ".github/workflows/build-images.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: images-${{ github.ref }}
+  group: build-images-${{ github.ref }}
   cancel-in-progress: false
 
 env:

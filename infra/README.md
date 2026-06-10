@@ -4,7 +4,7 @@ Terraform for the AWS demo deployment. Architecture and phasing:
 [docs/AWS_DEPLOYMENT_PLAN.md](../docs/AWS_DEPLOYMENT_PLAN.md).
 
 Everything after the one-time bootstrap runs through GitHub Actions
-(`.github/workflows/terraform.yml` and `images.yml`) using OIDC — no AWS
+(`.github/workflows/terraform.yml` and `build-images.yml`) using OIDC — no AWS
 keys are stored in GitHub.
 
 ## One-time bootstrap (local, admin credentials)

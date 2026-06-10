@@ -101,7 +101,7 @@ infra/
       ui/             # S3 + CloudFront                 (Phase D)
 .github/
   workflows/
-    images.yml        # build + push api/langgraph/adk images on main
+    build-images.yml  # build + push api/langgraph/adk images on main
     terraform.yml     # fmt+validate+plan on PR, apply on main
 ```
 
