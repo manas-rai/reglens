@@ -16,9 +16,15 @@ Or just open `site/index.html` directly in a browser.
 
 ## Deploy
 
-It's a single static file, so it drops into anything:
+Live at **https://manas-rai.github.io/reglens/**.
 
-- **GitHub Pages** — serve from `/site` (or move `index.html` to `/docs`)
+Deployment is automated via GitHub Pages: `.github/workflows/deploy-pages.yml`
+uploads the `site/` directory and publishes on every push to `main` that touches
+`site/**` (or on manual `workflow_dispatch`). Pages is configured with the
+"GitHub Actions" build source — no branch-based publishing.
+
+It's a single static file, so it also drops into anything else:
+
 - **S3 + CloudFront** — `aws s3 cp site/index.html s3://<bucket>/index.html`
 - **Netlify / Vercel / Cloudflare Pages** — set the publish directory to `site`
 
