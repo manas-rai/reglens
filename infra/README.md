@@ -28,6 +28,23 @@ the `reglens-github-actions` CI role. Then:
    gitignored). It changes rarely; re-run `terraform apply` here if it
    ever needs updating.
 
+## App secrets (one-time, after the first apply)
+
+The compute stack reads three secrets from SSM. Terraform creates them as
+`SecureString` placeholders so real keys never enter Terraform state — set the
+values once with admin credentials:
+
+```bash
+aws ssm put-parameter --name /reglens/gemini_api_key    --type SecureString --overwrite --value 'AIza...'
+aws ssm put-parameter --name /reglens/anthropic_api_key --type SecureString --overwrite --value 'sk-ant-...'
+aws ssm put-parameter --name /reglens/api_key           --type SecureString --overwrite --value "$(python -c 'import secrets; print(secrets.token_hex(32))')"
+```
+
+Force a new deployment to pick up changed secrets:
+`aws ecs update-service --cluster reglens --service reglens-app --force-new-deployment`.
+
+The public API URL is the `api_url` Terraform output (the ALB DNS name).
+
 ## Day-to-day
 
 - **PR touching `infra/terraform/`** → CI runs fmt check, validate, and

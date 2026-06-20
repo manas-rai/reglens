@@ -97,7 +97,7 @@ infra/
       network/        # VPC, subnets, IGW, SGs
       ecr/            # 3 ECR repos
       rds/            # postgres + pgvector init        (Phase B)
-      fargate/        # task def + service + ALB        (Phase C)
+      ecs/            # cluster, migrate task, service + ALB (Phase B/C)
       ui/             # S3 + CloudFront                 (Phase D)
 .github/
   workflows/
