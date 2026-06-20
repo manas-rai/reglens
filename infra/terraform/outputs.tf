@@ -25,3 +25,8 @@ output "ecs_cluster_name" {
 output "migrate_task_definition_arn" {
   value = module.ecs.migrate_task_definition_arn
 }
+
+output "api_url" {
+  description = "Public HTTP endpoint for the API (ALB DNS name)"
+  value       = "http://${module.ecs.alb_dns_name}"
+}

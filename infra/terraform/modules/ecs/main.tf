@@ -43,9 +43,12 @@ resource "aws_iam_role_policy_attachment" "execution_managed" {
 
 data "aws_iam_policy_document" "execution_secrets" {
   statement {
-    effect    = "Allow"
-    actions   = ["ssm:GetParameters"]
-    resources = var.secret_parameter_arns
+    effect  = "Allow"
+    actions = ["ssm:GetParameters"]
+    resources = concat(
+      var.secret_parameter_arns,
+      [for p in aws_ssm_parameter.app : p.arn],
+    )
   }
 }
 
